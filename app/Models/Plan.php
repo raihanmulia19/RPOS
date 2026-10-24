@@ -16,7 +16,12 @@ class Plan extends Model
 
     public function getQrisImageUrlAttribute(): ?string
     {
-        return $this->qris_image ? asset('storage/' . $this->qris_image) : null;
+        if (!$this->qris_image) {
+            return null;
+        }
+
+        $timestamp = $this->updated_at ? $this->updated_at->timestamp : time();
+        return asset('storage/' . $this->qris_image) . '?v=' . $timestamp;
     }
 
     protected function casts(): array

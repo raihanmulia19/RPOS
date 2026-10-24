@@ -91,12 +91,27 @@ Route::middleware('auth')->group(function () {
 
 Route::get('/storage/{path}', function ($path) {
     $filePath = storage_path('app/public/' . $path);
-    if (!file_exists($filePath)) {
+    if (!file_exists($filePath) || is_dir($filePath)) {
+        $filePath = public_path('storage/' . $path);
+    }
+    if (!file_exists($filePath) || is_dir($filePath)) {
         abort(404);
     }
-    return response()->file($filePath, [
-        'Cache-Control' => 'public, max-age=86400',
-    ]);
+
+    // Clean all active output buffers to prevent any corrupting whitespace/newlines
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    $mime = mime_content_type($filePath) ?: 'application/octet-stream';
+    $filesize = filesize($filePath);
+
+    header('Content-Type: ' . $mime);
+    header('Content-Length: ' . $filesize);
+    header('Cache-Control: public, max-age=86400');
+    header('Accept-Ranges: bytes');
+    readfile($filePath);
+    exit;
 })->where('path', '.*')->name('storage.file');
 
 require __DIR__.'/auth.php';

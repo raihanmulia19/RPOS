@@ -45,7 +45,7 @@
         <script>
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function () {
-                    navigator.serviceWorker.register('/sw.js').then(function (reg) {
+                    navigator.serviceWorker.register('/sw.js?v=2').then(function (reg) {
                         console.log('RPOS PWA Active. Scope:', reg.scope);
                     }).catch(function (err) {
                         console.warn('PWA Service Worker Registration Failed:', err);

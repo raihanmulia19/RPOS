@@ -3,7 +3,7 @@
  * Caches static assets & provides offline resilience for POS terminal
  */
 
-const CACHE_NAME = 'rpos-pwa-v1';
+const CACHE_NAME = 'rpos-pwa-v2';
 const PRECACHE_ASSETS = [
     '/',
     '/pos',
@@ -51,6 +51,11 @@ self.addEventListener('fetch', (event) => {
 
     // Skip Chrome extension or non-http requests
     if (!url.protocol.startsWith('http')) {
+        return;
+    }
+
+    // Never intercept dynamic storage files (QRIS, logos, payment proofs)
+    if (url.pathname.startsWith('/storage/')) {
         return;
     }
 

@@ -35,17 +35,23 @@ class Tenant extends Model
 
     public function getLogoUrlAttribute(): ?string
     {
-        return $this->logo ? asset('storage/' . $this->logo) : null;
+        if (!$this->logo) return null;
+        $v = $this->updated_at ? $this->updated_at->timestamp : time();
+        return asset('storage/' . $this->logo) . '?v=' . $v;
     }
 
     public function getQrisImageUrlAttribute(): ?string
     {
-        return $this->qris_image ? asset('storage/' . $this->qris_image) : null;
+        if (!$this->qris_image) return null;
+        $v = $this->updated_at ? $this->updated_at->timestamp : time();
+        return asset('storage/' . $this->qris_image) . '?v=' . $v;
     }
 
     public function getSubscriptionQrisImageUrlAttribute(): ?string
     {
-        return $this->subscription_qris_image ? asset('storage/' . $this->subscription_qris_image) : null;
+        if (!$this->subscription_qris_image) return null;
+        $v = $this->updated_at ? $this->updated_at->timestamp : time();
+        return asset('storage/' . $this->subscription_qris_image) . '?v=' . $v;
     }
 
     public function getHasMidtransServerKeyAttribute(): bool
