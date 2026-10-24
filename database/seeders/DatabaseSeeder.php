@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
             [
                 'tenant_id' => null,
                 'name' => 'Platform Super Admin',
-                'password' => Hash::make('password'),
+                'password' => Hash::make('Super@dmin21'),
                 'role' => 'superadmin',
             ]
         );
