@@ -1,0 +1,4 @@
+*
+!.gitignore
+!plans_qris/
+!plans_qris/**
