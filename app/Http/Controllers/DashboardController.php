@@ -51,6 +51,18 @@ class DashboardController extends Controller
                 ->first()
             : null;
 
+        $rejectedSubscription = $tenant 
+            ? \App\Models\TenantSubscription::with('plan')
+                ->where('tenant_id', $tenant->id)
+                ->where('status', 'rejected')
+                ->latest()
+                ->first()
+            : null;
+
+        if ($pendingSubscription && $rejectedSubscription && $pendingSubscription->created_at > $rejectedSubscription->created_at) {
+            $rejectedSubscription = null;
+        }
+
         $recentlyApprovedSubscription = $tenant 
             ? \App\Models\TenantSubscription::with('plan')
                 ->where('tenant_id', $tenant->id)
@@ -73,6 +85,7 @@ class DashboardController extends Controller
             ],
             'tenant' => $tenant,
             'pendingSubscription' => $pendingSubscription,
+            'rejectedSubscription' => $rejectedSubscription,
             'recentlyApprovedSubscription' => $recentlyApprovedSubscription,
             'adminContact' => [
                 'whatsapp' => env('SUPERADMIN_WHATSAPP', '6285121210403'),

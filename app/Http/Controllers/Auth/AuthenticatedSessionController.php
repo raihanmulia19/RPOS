@@ -54,7 +54,7 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('superadmin.dashboard');
         }
 
-        if ($user->tenant && $user->tenant->subscription_status === 'pending') {
+        if ($user->tenant && in_array($user->tenant->subscription_status, ['pending', 'rejected'])) {
             return redirect()->route('subscription.waiting-approval');
         }
 

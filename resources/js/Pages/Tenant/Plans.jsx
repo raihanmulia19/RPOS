@@ -73,6 +73,7 @@ export default function Plans({ tenant, plans, currentPlan, latestSubscription, 
 
 
     const isPending = latestSubscription && latestSubscription.status === 'pending';
+    const isRejected = latestSubscription && latestSubscription.status === 'rejected';
 
     return (
         <div className="min-h-screen bg-surface font-body-md text-on-surface">
@@ -136,6 +137,54 @@ export default function Plans({ tenant, plans, currentPlan, latestSubscription, 
                     </div>
                 )}
 
+                {/* Rejected Notice with Note from Super Admin */}
+                {isRejected && (
+                    <div className="bg-red-50 border border-red-200 text-red-950 p-5 rounded-2xl shadow-sm space-y-3.5 animate-fade-in">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="flex items-start space-x-3">
+                                <span className="material-symbols-outlined text-red-600 text-2xl mt-0.5">cancel</span>
+                                <div>
+                                    <div className="flex items-center space-x-2">
+                                        <h4 className="font-bold text-sm text-red-950">
+                                            Pengajuan Langganan Terakhir Ditolak
+                                        </h4>
+                                        <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                            Ditolak
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-red-800/90 mt-0.5">
+                                        Ref: <span className="font-mono font-bold">{latestSubscription.payment_reference}</span> • Paket: <strong>{latestSubscription.plan?.name}</strong> ({formatRupiah(latestSubscription.amount)}).
+                                    </p>
+                                </div>
+                            </div>
+
+                            <a
+                                href={`https://wa.me/${adminContact?.whatsapp || '6285121210403'}?text=${encodeURIComponent(`Halo Admin, saya ingin menanyakan mengenai verifikasi pembayaran langganan toko "${tenant?.name}" yang ditolak (Ref: ${latestSubscription.payment_reference}) dengan catatan: "${latestSubscription.notes || 'Bukti transfer tidak valid'}". Terima kasih.`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center space-x-1 shrink-0"
+                            >
+                                <span className="material-symbols-outlined text-sm">chat</span>
+                                <span>Hubungi Admin WhatsApp</span>
+                            </a>
+                        </div>
+
+                        {/* Note dari Super Admin */}
+                        <div className="bg-white border border-red-200 p-3.5 rounded-xl shadow-xs text-xs space-y-1">
+                            <div className="flex items-center space-x-1.5 text-red-900 font-bold">
+                                <span className="material-symbols-outlined text-base text-red-600">chat_bubble</span>
+                                <span>Catatan / Alasan Penolakan dari Super Admin:</span>
+                            </div>
+                            <p className="text-red-950 italic pl-6 font-medium">
+                                "{latestSubscription.notes || 'Bukti transfer tidak valid atau dana belum diterima.'}"
+                            </p>
+                            <p className="text-[11px] text-red-800 pl-6 pt-1">
+                                Silakan pilih kembali paket di bawah ini untuk mengajukan ulang dengan bukti transfer yang valid.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Current Active Plan Status Bar */}
                 <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex items-center space-x-3">
@@ -146,11 +195,14 @@ export default function Plans({ tenant, plans, currentPlan, latestSubscription, 
                             <div className="text-xs text-on-surface-variant font-medium">Status Langganan Toko Saat Ini:</div>
                             <div className="text-lg font-bold text-primary flex items-center space-x-2">
                                 <span>{currentPlan?.name || 'Free Trial'}</span>
-                                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${tenant?.subscription_status === 'active'
+                                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                                    tenant?.subscription_status === 'active'
                                         ? 'bg-green-100 text-green-800'
+                                        : tenant?.subscription_status === 'rejected'
+                                        ? 'bg-red-100 text-red-800 border border-red-200'
                                         : 'bg-amber-100 text-amber-800'
-                                    }`}>
-                                    {tenant?.subscription_status}
+                                }`}>
+                                    {tenant?.subscription_status === 'rejected' ? 'Ditolak' : tenant?.subscription_status}
                                 </span>
                             </div>
                         </div>

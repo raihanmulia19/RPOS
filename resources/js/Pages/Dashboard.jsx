@@ -15,6 +15,7 @@ export default function Dashboard({
     filters = {}, 
     tenant = null,
     pendingSubscription = null,
+    rejectedSubscription = null,
     recentlyApprovedSubscription = null,
     adminContact = {}
 }) {
@@ -109,6 +110,52 @@ export default function Dashboard({
                             <span className="material-symbols-outlined text-sm">payments</span>
                             <span>Buka Barcode QRIS & WA</span>
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Rejected Subscription Banner */}
+            {rejectedSubscription && !pendingSubscription && (
+                <div className="bg-red-50 border-b border-red-200 text-red-950 px-4 py-3.5 sticky top-0 z-30 shadow-xs animate-fade-in">
+                    <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex items-start sm:items-center space-x-3">
+                            <div className="w-9 h-9 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5 sm:mt-0">
+                                <span className="material-symbols-outlined text-xl">cancel</span>
+                            </div>
+                            <div className="space-y-0.5">
+                                <div className="text-xs sm:text-sm font-bold text-red-950 flex items-center gap-2">
+                                    <span>Pengajuan Pembayaran Paket {rejectedSubscription.plan?.name} Ditolak</span>
+                                    <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                        Ditolak
+                                    </span>
+                                </div>
+                                <p className="text-xs text-red-800/90">
+                                    No. Referensi: <strong className="font-mono">{rejectedSubscription.payment_reference}</strong> • 
+                                    Catatan Super Admin: <span className="font-semibold italic">"{rejectedSubscription.notes || 'Bukti transfer tidak valid atau dana belum masuk.'}"</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2 shrink-0">
+                            <Link
+                                href={route('subscription.plans')}
+                                className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center space-x-1"
+                            >
+                                <span className="material-symbols-outlined text-sm">shopping_bag</span>
+                                <span>Pilih / Ajukan Ulang</span>
+                            </Link>
+                            {adminContact?.whatsapp && (
+                                <a
+                                    href={`https://wa.me/${adminContact.whatsapp}?text=${encodeURIComponent(`Halo Admin, saya ingin menanyakan pengajuan pembayaran paket ${rejectedSubscription.plan?.name} (${rejectedSubscription.payment_reference}) yang ditolak: "${rejectedSubscription.notes || ''}". Terima kasih.`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-3 py-1.5 bg-white hover:bg-red-100 text-red-950 border border-red-300 rounded-xl text-xs font-bold transition flex items-center space-x-1"
+                                >
+                                    <span className="material-symbols-outlined text-sm text-green-600">chat</span>
+                                    <span>WA Admin</span>
+                                </a>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

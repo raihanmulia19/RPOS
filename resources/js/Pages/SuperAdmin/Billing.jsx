@@ -514,10 +514,17 @@ export default function SuperAdminBilling({
                                                         <span>Diverifikasi (Masuk)</span>
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-error-container text-on-error-container" title={sub.notes}>
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
-                                                        <span>Ditolak</span>
-                                                    </span>
+                                                    <div>
+                                                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-error-container text-on-error-container" title={sub.notes}>
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
+                                                            <span>Ditolak</span>
+                                                        </span>
+                                                        {sub.notes && (
+                                                            <div className="text-[10px] text-error font-medium mt-1 max-w-[220px] truncate" title={sub.notes}>
+                                                                Note: {sub.notes}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </td>
                                             <td className="px-5 py-3.5 text-center">
@@ -622,7 +629,7 @@ export default function SuperAdminBilling({
                         </div>
 
                         <p className="text-xs text-on-surface-variant">
-                            Tolak pengajuan dari toko <strong className="text-on-surface">{rejectingSub.tenant?.name}</strong> senilai <strong>{formatRupiah(rejectingSub.amount)}</strong>.
+                            Tolak pengajuan dari toko <strong className="text-on-surface">{rejectingSub.tenant?.name}</strong> senilai <strong>{formatRupiah(rejectingSub.amount)}</strong>. Catatan ini akan langsung ditampilkan kepada pemilik toko.
                         </p>
 
                         <form onSubmit={handleConfirmReject} className="space-y-4">

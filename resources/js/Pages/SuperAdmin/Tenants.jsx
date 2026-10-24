@@ -26,6 +26,7 @@ export default function SuperAdminTenants({
             if (filterStatus === 'all') return matchesSearch;
             if (filterStatus === 'active') return matchesSearch && tenant.is_active && tenant.subscription_status === 'active';
             if (filterStatus === 'trial') return matchesSearch && tenant.is_active && tenant.subscription_status === 'trial';
+            if (filterStatus === 'rejected') return matchesSearch && tenant.subscription_status === 'rejected';
             if (filterStatus === 'suspended') return matchesSearch && !tenant.is_active;
             return matchesSearch;
         });
@@ -264,6 +265,7 @@ export default function SuperAdminTenants({
                                 <option value="all">Semua Status</option>
                                 <option value="active">Langganan Aktif</option>
                                 <option value="trial">Masa Trial</option>
+                                <option value="rejected">Ditolak</option>
                                 <option value="suspended">Ditangguhkan (Suspend)</option>
                             </select>
                         </div>
@@ -368,6 +370,16 @@ export default function SuperAdminTenants({
                                                                 <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 bg-secondary-fixed text-on-secondary-fixed rounded-full text-[11px] font-bold uppercase tracking-wide">
                                                                     <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
                                                                     <span>Active</span>
+                                                                </span>
+                                                            ) : tenant.subscription_status === 'rejected' ? (
+                                                                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 bg-error text-on-error rounded-full text-[11px] font-bold uppercase tracking-wide shadow-xs">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                                                                    <span>Ditolak</span>
+                                                                </span>
+                                                            ) : tenant.subscription_status === 'pending' ? (
+                                                                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 bg-amber-100 text-amber-900 rounded-full text-[11px] font-bold uppercase tracking-wide border border-amber-300">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
+                                                                    <span>Pending</span>
                                                                 </span>
                                                             ) : (
                                                                 <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 bg-surface-container-highest text-on-surface-variant rounded-full text-[11px] font-bold uppercase tracking-wide border border-outline-variant">

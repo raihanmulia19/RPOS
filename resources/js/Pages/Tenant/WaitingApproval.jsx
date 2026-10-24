@@ -72,8 +72,18 @@ export default function WaitingApproval({
     const hasProof = Boolean(uploadPreview || subscription?.payment_proof_url);
     const activeProofUrl = subscription?.payment_proof_url || uploadPreview;
 
+    const isRejected = subscription?.status === 'rejected' || tenant?.subscription_status === 'rejected';
+    const rejectNotes = subscription?.notes || 'Bukti transfer tidak valid atau dana belum masuk.';
+
     // Pre-filled WhatsApp message (clean plain text without emojis to prevent broken symbols)
-    const waMessage = encodeURIComponent(
+    const waMessage = isRejected 
+        ? encodeURIComponent(
+`Halo Super Admin RPOS, saya pemilik toko "${storeName}" ingin mengonfirmasi perbaikan pembayaran paket langganan ${planName} (Ref: ${refCode}).
+
+Sebelumnya pengajuan ditolak dengan catatan: "${rejectNotes}".
+Saya telah mengunggah kembali foto bukti transfer yang valid di sistem. Mohon dapat divalidasi ulang agar akun toko kami dapat segera diaktifkan. Terima kasih!`
+        )
+        : encodeURIComponent(
 `Halo Super Admin RPOS, saya pemilik toko "${storeName}" baru saja mendaftar akun dan melakukan pembayaran paket langganan:
 
 - Toko: ${storeName}
@@ -83,7 +93,7 @@ export default function WaitingApproval({
 - No. Referensi: ${refCode}
 
 Foto struk bukti transfer telah saya unggah di sistem dan saya lampirkan juga di pesan WhatsApp ini. Mohon divalidasi dan diaktifkan akun toko kami agar bisa mulai login ke terminal kasir. Terima kasih!`
-    );
+        );
 
     const waUrl = `https://wa.me/${waNumber}?text=${waMessage}`;
 
@@ -123,38 +133,100 @@ Foto struk bukti transfer telah saya unggah di sistem dan saya lampirkan juga di
             <div className="max-w-4xl mx-auto w-full my-auto">
                 <div className="bg-surface-container-lowest rounded-3xl shadow-xl border border-outline-variant overflow-hidden">
                     
-                    {/* Amber Notice Header */}
-                    <div className="bg-amber-50 border-b border-amber-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-2xl bg-amber-200 text-amber-900 flex items-center justify-center font-bold shrink-0 shadow-xs">
-                                <Icon icon="solar:clock-circle-bold" className="text-2xl animate-spin-slow" />
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h2 className="font-bold text-amber-950 text-sm sm:text-base">
-                                        Menunggu Verifikasi & Konfirmasi Super Admin
-                                    </h2>
-                                    <span className="bg-amber-200 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
-                                        Pending
-                                    </span>
+                    {/* Notice Header: Pending vs Ditolak */}
+                    {isRejected ? (
+                        <div className="bg-red-50 border-b border-red-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center font-bold shrink-0 shadow-xs">
+                                    <Icon icon="solar:close-circle-bold" className="text-2xl" />
                                 </div>
-                                <p className="text-xs text-amber-800/90 mt-0.5">
-                                    Akun Anda belum aktif. Akses login terminal kasir & dashboard akan terbuka otomatis setelah pembayaran diverifikasi admin.
-                                </p>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="font-bold text-red-950 text-sm sm:text-base">
+                                            Pengajuan Pembayaran Paket Ditolak
+                                        </h2>
+                                        <span className="bg-red-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                            Ditolak
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-red-800/90 mt-0.5">
+                                        Pengajuan aktivasi paket toko Anda ditolak oleh Super Admin. Silakan periksa catatan alasan di bawah.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleCheckStatus}
+                                disabled={isChecking}
+                                className="px-3.5 py-2 bg-white hover:bg-red-100 text-red-950 border border-red-300 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shrink-0 shadow-xs active:scale-95"
+                                title="Muat ulang untuk cek status terbaru"
+                            >
+                                <Icon icon="solar:refresh-bold" className={`text-sm ${isChecking ? 'animate-spin' : ''}`} />
+                                <span>{isChecking ? 'Memeriksa...' : 'Cek Status'}</span>
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="bg-amber-50 border-b border-amber-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 rounded-2xl bg-amber-200 text-amber-900 flex items-center justify-center font-bold shrink-0 shadow-xs">
+                                    <Icon icon="solar:clock-circle-bold" className="text-2xl animate-spin-slow" />
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="font-bold text-amber-950 text-sm sm:text-base">
+                                            Menunggu Verifikasi & Konfirmasi Super Admin
+                                        </h2>
+                                        <span className="bg-amber-200 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                                            Pending
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-amber-800/90 mt-0.5">
+                                        Akun Anda belum aktif. Akses login terminal kasir & dashboard akan terbuka otomatis setelah pembayaran diverifikasi admin.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleCheckStatus}
+                                disabled={isChecking}
+                                className="px-3.5 py-2 bg-white hover:bg-amber-100 text-amber-950 border border-amber-300 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shrink-0 shadow-xs active:scale-95"
+                                title="Periksa apakah Super Admin sudah menyetujui akun Anda"
+                            >
+                                <Icon icon="solar:refresh-bold" className={`text-sm ${isChecking ? 'animate-spin' : ''}`} />
+                                <span>{isChecking ? 'Memeriksa...' : 'Cek Status Aktivasi'}</span>
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Catatan dari Super Admin Box (HANYA DITAMPILKAN JIKA DITOLAK) */}
+                    {isRejected && (
+                        <div className="bg-gradient-to-r from-red-50 to-orange-50 border-b border-red-200 p-5 sm:p-6 animate-fade-in">
+                            <div className="flex items-start space-x-3.5">
+                                <div className="w-10 h-10 rounded-2xl bg-red-600 text-white flex items-center justify-center font-bold shrink-0 shadow-sm mt-0.5">
+                                    <Icon icon="solar:chat-round-dots-bold" className="text-xl" />
+                                </div>
+                                <div className="flex-1 space-y-2">
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-xs font-bold text-red-900 uppercase tracking-wider">
+                                            Catatan dari Super Admin:
+                                        </span>
+                                        <span className="text-[10px] bg-red-200 text-red-900 font-bold px-2.5 py-0.5 rounded-full uppercase">
+                                            Alasan Penolakan
+                                        </span>
+                                    </div>
+                                    <div className="text-xs sm:text-sm font-semibold text-red-950 bg-white/95 border border-red-200 p-3.5 rounded-xl shadow-xs leading-relaxed flex items-start space-x-2">
+                                        <Icon icon="solar:danger-triangle-bold" className="text-red-600 text-lg shrink-0 mt-0.5" />
+                                        <span>"{rejectNotes}"</span>
+                                    </div>
+                                    <p className="text-xs text-red-800 leading-relaxed">
+                                        Silakan pastikan Anda mentransfer tepat sejumlah <strong>{formatRupiah(amount)}</strong> ke barcode QRIS di samping, lalu unggah ulang bukti transfer yang jelas agar Super Admin dapat memverifikasi ulang toko Anda.
+                                    </p>
+                                </div>
                             </div>
                         </div>
-
-                        <button
-                            type="button"
-                            onClick={handleCheckStatus}
-                            disabled={isChecking}
-                            className="px-3.5 py-2 bg-white hover:bg-amber-100 text-amber-950 border border-amber-300 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shrink-0 shadow-xs active:scale-95"
-                            title="Periksa apakah Super Admin sudah menyetujui akun Anda"
-                        >
-                            <Icon icon="solar:refresh-bold" className={`text-sm ${isChecking ? 'animate-spin' : ''}`} />
-                            <span>{isChecking ? 'Memeriksa...' : 'Cek Status Aktivasi'}</span>
-                        </button>
-                    </div>
+                    )}
 
                     {/* Flash Success Notification */}
                     {flash?.success && (
@@ -214,12 +286,32 @@ Foto struk bukti transfer telah saya unggah di sistem dan saya lampirkan juga di
                                             </button>
                                         </div>
                                     </div>
+                                    <div className="flex justify-between items-center pb-2 border-b border-outline-variant/60">
+                                        <span className="text-xs text-on-surface-variant">Status Pengajuan:</span>
+                                        {isRejected ? (
+                                            <span className="font-bold text-xs px-2.5 py-0.5 rounded-full bg-red-100 text-red-800 flex items-center gap-1 border border-red-200">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                                                <span>Ditolak</span>
+                                            </span>
+                                        ) : (
+                                            <span className="font-bold text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 flex items-center gap-1">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
+                                                <span>Menunggu Verifikasi</span>
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="flex justify-between items-center pt-1 text-base">
                                         <span className="font-bold text-on-surface text-xs sm:text-sm">Total Nominal Transfer:</span>
                                         <span className="font-extrabold text-primary text-lg sm:text-xl">
                                             {formatRupiah(amount)}
                                         </span>
                                     </div>
+                                </div>
+
+                                <div className="flex items-center justify-between text-xs pt-0.5">
+                                    <Link href={route('subscription.plans')} className="text-secondary font-bold hover:underline inline-flex items-center space-x-1">
+                                        <span>Ingin beralih atau pilih paket lain? Klik di sini &rarr;</span>
+                                    </Link>
                                 </div>
 
                                 {/* Step Instructions */}
@@ -369,7 +461,7 @@ Foto struk bukti transfer telah saya unggah di sistem dan saya lampirkan juga di
                                 />
 
                                 {/* Upload Card Preview / Trigger */}
-                                {hasProof && activeProofUrl ? (
+                                {hasProof && activeProofUrl && !isRejected ? (
                                     <div className="bg-surface-container-lowest p-2.5 rounded-2xl border border-green-300 flex items-center justify-between gap-2 shadow-xs">
                                         <div className="flex items-center space-x-2.5 overflow-hidden">
                                             <img
@@ -410,14 +502,27 @@ Foto struk bukti transfer telah saya unggah di sistem dan saya lampirkan juga di
                                 ) : (
                                     <div
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="p-4 rounded-2xl border-2 border-dashed border-error/50 hover:border-error bg-error-container/10 hover:bg-error-container/20 cursor-pointer transition text-center space-y-1.5"
+                                        className={`p-4 rounded-2xl border-2 border-dashed cursor-pointer transition text-center space-y-1.5 ${
+                                            isRejected
+                                                ? 'border-red-400 hover:border-red-600 bg-red-50 hover:bg-red-100/70 text-red-900'
+                                                : 'border-error/50 hover:border-error bg-error-container/10 hover:bg-error-container/20'
+                                        }`}
                                     >
-                                        <Icon icon="solar:camera-add-bold" className="text-3xl text-error mx-auto" />
-                                        <div className="text-xs font-bold text-error">
-                                            {isUploading ? 'Sedang Mengunggah...' : 'Klik untuk Pilih Foto Struk Transfer (Wajib)'}
+                                        <Icon 
+                                            icon={isRejected ? "solar:upload-track-bold" : "solar:camera-add-bold"} 
+                                            className={`text-3xl mx-auto ${isRejected ? 'text-red-600' : 'text-error'}`} 
+                                        />
+                                        <div className={`text-xs font-bold ${isRejected ? 'text-red-900' : 'text-error'}`}>
+                                            {isUploading 
+                                                ? 'Sedang Mengunggah...' 
+                                                : isRejected 
+                                                ? 'Klik untuk Unggah Ulang Bukti Transfer yang Valid' 
+                                                : 'Klik untuk Pilih Foto Struk Transfer (Wajib)'}
                                         </div>
                                         <p className="text-[10px] text-on-surface-variant">
-                                            Ambil foto struk ATM / screenshot mutasi m-Banking Anda.
+                                            {isRejected 
+                                                ? 'Pilih foto struk / screenshot baru yang sesuai dengan catatan penolakan admin.' 
+                                                : 'Ambil foto struk ATM / screenshot mutasi m-Banking Anda.'}
                                         </p>
                                     </div>
                                 )}

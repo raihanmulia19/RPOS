@@ -193,6 +193,7 @@ class SuperAdminDashboardController extends Controller
             'activeTenants' => Tenant::where('is_active', true)->count(),
             'activePaidTenants' => Tenant::where('is_active', true)->where('subscription_status', 'active')->count(),
             'trialTenants' => Tenant::where('is_active', true)->where('subscription_status', 'trial')->count(),
+            'rejectedTenants' => Tenant::where('subscription_status', 'rejected')->count(),
             'suspendedTenants' => Tenant::where('is_active', false)->count(),
         ];
 
@@ -341,12 +342,24 @@ class SuperAdminDashboardController extends Controller
      */
     public function rejectSubscription(Request $request, TenantSubscription $subscription)
     {
+        $notes = $request->input('notes') ?: 'Bukti transfer tidak valid atau dana belum masuk.';
+
         $subscription->update([
             'status' => 'rejected',
-            'notes' => $request->input('notes', 'Bukti transfer tidak valid atau dana belum masuk.'),
+            'notes' => $notes,
             'verified_at' => now(),
             'verified_by' => $request->user()->id,
         ]);
+
+        $tenant = $subscription->tenant;
+        if ($tenant) {
+            // Jika toko belum memiliki langganan aktif atau statusnya pending, ubah status langganan tenant menjadi 'rejected'
+            if ($tenant->subscription_status === 'pending' || ! $tenant->isSubscriptionActive()) {
+                $tenant->update([
+                    'subscription_status' => 'rejected',
+                ]);
+            }
+        }
 
         return back()->with('success', "Pengajuan langganan #{$subscription->payment_reference} berhasil ditolak.");
     }

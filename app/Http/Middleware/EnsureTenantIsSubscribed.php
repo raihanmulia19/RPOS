@@ -35,16 +35,18 @@ class EnsureTenantIsSubscribed
 
         // Check if tenant's subscription/trial is active and not suspended
         if (! $tenant->isSubscriptionActive()) {
-            // Jika akun toko masih pending verifikasi pembayaran oleh Super Admin
-            if ($tenant->subscription_status === 'pending') {
-                if ($request->routeIs('subscription.waiting-approval') || $request->routeIs('subscription.upload-proof') || $request->routeIs('logout')) {
+            // Jika akun toko masih pending atau ditolak verifikasi pembayaran oleh Super Admin
+            if (in_array($tenant->subscription_status, ['pending', 'rejected'])) {
+                if ($request->routeIs('subscription.waiting-approval') || $request->routeIs('subscription.upload-proof') || $request->routeIs('subscription.plans') || $request->routeIs('subscription.checkout') || $request->routeIs('logout')) {
                     return $next($request);
                 }
 
                 if ($request->expectsJson()) {
                     return response()->json([
-                        'message' => 'Akun toko Anda sedang menunggu verifikasi pembayaran oleh Super Admin.',
-                        'subscription_status' => 'pending',
+                        'message' => $tenant->subscription_status === 'rejected'
+                            ? 'Pengajuan pembayaran langganan toko Anda ditolak oleh Super Admin.'
+                            : 'Akun toko Anda sedang menunggu verifikasi pembayaran oleh Super Admin.',
+                        'subscription_status' => $tenant->subscription_status,
                         'is_active' => $tenant->is_active,
                     ], 403);
                 }

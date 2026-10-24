@@ -109,9 +109,15 @@ class SubscriptionController extends Controller
 
         $path = $request->file('payment_proof')->store('subscription_proofs', 'public');
         $subscription->payment_proof = $path;
+        $subscription->status = 'pending';
+        $subscription->notes = null;
         $subscription->save();
 
-        return back()->with('success', 'Bukti transfer berhasil diunggah! Super Admin akan segera memvalidasi pembayaran Anda.');
+        if ($tenant->subscription_status === 'rejected') {
+            $tenant->update(['subscription_status' => 'pending']);
+        }
+
+        return back()->with('success', 'Bukti transfer baru berhasil diunggah! Status pengajuan langganan toko kembali berstatus pending untuk diverifikasi ulang oleh Super Admin.');
     }
 
     /**
@@ -131,17 +137,17 @@ class SubscriptionController extends Controller
             return redirect()->to($user->role === 'admin' ? '/pos' : '/dashboard');
         }
 
-        $pendingSubscription = TenantSubscription::with('plan')
+        // Ambil riwayat langganan terbaru untuk toko ini (baik pending maupun rejected)
+        $latestSubscription = TenantSubscription::with('plan')
             ->where('tenant_id', $tenant->id)
-            ->where('status', 'pending')
             ->latest()
             ->first();
 
-        // Fallback jika tidak ada pending subscription tapi status tenant pending
-        if (! $pendingSubscription) {
+        // Fallback jika belum ada data subscription sama sekali
+        if (! $latestSubscription) {
             $plan = $tenant->plan ?: Plan::where('slug', 'pro')->first();
             $refNumber = 'SUB-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
-            $pendingSubscription = TenantSubscription::create([
+            $latestSubscription = TenantSubscription::create([
                 'tenant_id' => $tenant->id,
                 'plan_id' => $plan->id,
                 'status' => 'pending',
@@ -150,13 +156,13 @@ class SubscriptionController extends Controller
                 'payment_reference' => $refNumber,
                 'notes' => 'Pendaftaran paket ' . $plan->name,
             ]);
-            $pendingSubscription->load('plan');
+            $latestSubscription->load('plan');
         }
 
         return Inertia::render('Tenant/WaitingApproval', [
             'tenant' => $tenant,
-            'subscription' => $pendingSubscription,
-            'plan' => $pendingSubscription->plan,
+            'subscription' => $latestSubscription,
+            'plan' => $latestSubscription->plan,
             'user' => $user,
             'adminContact' => [
                 'whatsapp' => env('SUPERADMIN_WHATSAPP', '6285121210403'),
