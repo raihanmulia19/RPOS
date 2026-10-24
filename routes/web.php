@@ -89,4 +89,14 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+Route::get('/storage/{path}', function ($path) {
+    $filePath = storage_path('app/public/' . $path);
+    if (!file_exists($filePath)) {
+        abort(404);
+    }
+    return response()->file($filePath, [
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+})->where('path', '.*')->name('storage.file');
+
 require __DIR__.'/auth.php';
