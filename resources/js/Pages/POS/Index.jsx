@@ -42,6 +42,7 @@ export default function PosIndex({ categories, products, tenant, currentOutlet =
     const [isInstalled, setIsInstalled] = useState(false);
     const [isOnline, setIsOnline] = useState(typeof window !== 'undefined' ? window.navigator.onLine : true);
     const [showInstallGuideModal, setShowInstallGuideModal] = useState(false);
+    const [showQrisPreviewModal, setShowQrisPreviewModal] = useState(false);
 
     const isIosDevice = typeof window !== 'undefined' && (
         /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase()) ||
@@ -804,15 +805,15 @@ export default function PosIndex({ categories, products, tenant, currentOutlet =
                 {/* RIGHT: Cart & Checkout */}
                 <div className={`fixed inset-y-0 right-0 w-full sm:w-96 md:static md:w-2/5 lg:w-1/3 bg-surface-container-lowest shadow-2xl z-40 transform transition-transform duration-300 md:transform-none flex flex-col h-full ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                     
-                    {/* Top Header: Akun yang Sedang Login (Posisi Sebelumnya) */}
-                    <div className="p-4 bg-surface border-b border-outline-variant flex items-center justify-between shadow-sm z-10 min-h-[73px]">
+                    {/* Top Header: Akun yang Sedang Login */}
+                    <div className="px-4 py-3 bg-surface border-b border-outline-variant flex items-center justify-between shadow-xs z-10 shrink-0">
                         <div className="flex items-center space-x-3 min-w-0">
-                            <div className="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-base shadow-xs shrink-0 border border-secondary/20">
+                            <div className="w-9 h-9 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-sm shadow-xs shrink-0 border border-secondary/20">
                                 {auth?.user?.name ? auth.user.name.charAt(0).toUpperCase() : 'U'}
                             </div>
                             <div className="min-w-0">
                                 <div className="flex items-center space-x-1.5">
-                                    <span className="font-headline-sm font-bold text-primary truncate text-sm sm:text-base">
+                                    <span className="font-headline-sm font-bold text-primary truncate text-sm">
                                         {auth?.user?.name || 'Kasir'}
                                     </span>
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Shift Aktif"></span>
@@ -834,14 +835,14 @@ export default function PosIndex({ categories, products, tenant, currentOutlet =
                         </button>
                     </div>
 
-                    {/* Subheader: Pesanan Saat Ini (Diturunkan) */}
-                    <div className="p-4 border-b border-outline-variant bg-surface-container-low flex justify-between items-center shrink-0">
-                        <h2 className="font-headline-md font-bold text-primary">Pesanan Saat Ini</h2>
-                        <span className="font-label-sm text-secondary bg-secondary/10 px-2.5 py-1 rounded-md font-semibold">{cart.length} item</span>
+                    {/* Subheader: Pesanan Saat Ini */}
+                    <div className="px-4 py-2.5 border-b border-outline-variant bg-surface-container-low flex justify-between items-center shrink-0">
+                        <h2 className="font-headline-sm font-bold text-primary text-sm sm:text-base">Pesanan Saat Ini</h2>
+                        <span className="font-label-sm text-secondary bg-secondary/10 px-2.5 py-0.5 rounded-full font-semibold text-xs">{cart.length} item</span>
                     </div>
 
                     {/* Cart Items */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    <div className="flex-1 min-h-[140px] overflow-y-auto p-3.5 space-y-2.5">
                         {cart.length === 0 ? (
                             <div className="text-center text-on-surface-variant font-body-md mt-10">
                                 Keranjang masih kosong.
@@ -916,44 +917,48 @@ export default function PosIndex({ categories, products, tenant, currentOutlet =
                     </div>
 
                     {/* Summary & Checkout */}
-                    <div className="p-6 bg-surface-container-low border-t border-outline-variant space-y-4">
-                        <div className="space-y-2">
-                            <div className="flex justify-between text-on-surface-variant font-body-md">
+                    <div className="p-3.5 sm:p-4 bg-surface-container-low border-t border-outline-variant space-y-2.5 shrink-0 overflow-y-auto max-h-[62vh]">
+                        <div className="space-y-1.5 text-xs sm:text-sm">
+                            <div className="flex justify-between text-on-surface-variant font-body-sm">
                                 <span>Subtotal</span>
                                 <span>{formatRupiah(subtotal)}</span>
                             </div>
-                            <div className="flex justify-between text-on-surface-variant font-body-md">
+                            <div className="flex justify-between text-on-surface-variant font-body-sm">
                                 <span>Pajak ({taxPercentage}%)</span>
                                 <span>{formatRupiah(tax)}</span>
                             </div>
-                            <div className="flex justify-between font-headline-sm font-bold text-primary pt-2 border-t border-outline-variant">
+                            <div className="flex justify-between font-headline-sm font-bold text-primary pt-1.5 border-t border-outline-variant text-base sm:text-lg">
                                 <span>Total Tagihan</span>
                                 <span>{formatRupiah(total)}</span>
                             </div>
                         </div>
 
-                        <div className="space-y-3 pt-2">
-                            <label className="font-label-sm font-semibold text-on-surface">Metode Pembayaran</label>
+                        <div className="space-y-1.5 pt-1">
+                            <label className="font-label-sm font-semibold text-on-surface text-xs">Metode Pembayaran</label>
                             <div className="flex space-x-2">
                                 <button 
+                                    type="button"
                                     onClick={() => setPaymentMethod('cash')}
-                                    className={`flex-1 py-3 rounded-xl font-label-md border transition-all ${paymentMethod === 'cash' ? 'bg-primary-container text-on-primary-container border-primary-container' : 'border-outline-variant text-on-surface hover:bg-surface-container-high'}`}
+                                    className={`flex-1 py-2 sm:py-2.5 rounded-xl font-label-md text-xs sm:text-sm font-bold border transition-all flex items-center justify-center space-x-1.5 ${paymentMethod === 'cash' ? 'bg-primary-container text-on-primary-container border-primary-container shadow-xs' : 'border-outline-variant text-on-surface hover:bg-surface-container-high'}`}
                                 >
-                                    Tunai
+                                    <span className="material-symbols-outlined text-base">payments</span>
+                                    <span>Tunai</span>
                                 </button>
                                 <button 
+                                    type="button"
                                     onClick={() => setPaymentMethod('qris')}
-                                    className={`flex-1 py-3 rounded-xl font-label-md border transition-all ${paymentMethod === 'qris' ? 'bg-primary-container text-on-primary-container border-primary-container' : 'border-outline-variant text-on-surface hover:bg-surface-container-high'}`}
+                                    className={`flex-1 py-2 sm:py-2.5 rounded-xl font-label-md text-xs sm:text-sm font-bold border transition-all flex items-center justify-center space-x-1.5 ${paymentMethod === 'qris' ? 'bg-primary-container text-on-primary-container border-primary-container shadow-xs' : 'border-outline-variant text-on-surface hover:bg-surface-container-high'}`}
                                 >
-                                    QRIS
+                                    <span className="material-symbols-outlined text-base">qr_code_2</span>
+                                    <span>QRIS</span>
                                 </button>
                             </div>
                         </div>
 
                         {paymentMethod === 'cash' && (
-                            <div className="space-y-2 pt-2">
+                            <div className="space-y-2 pt-1">
                                 <div className="flex items-center justify-between">
-                                    <label className="font-label-sm font-semibold text-on-surface">Uang Diterima (Tunai)</label>
+                                    <label className="font-label-sm font-semibold text-on-surface text-xs">Uang Diterima (Tunai)</label>
                                 </div>
 
                                 <div className="relative flex items-center">
@@ -962,7 +967,7 @@ export default function PosIndex({ categories, products, tenant, currentOutlet =
                                         type="text" 
                                         value={amountTendered ? Number(amountTendered).toLocaleString('id-ID') : ''}
                                         onChange={(e) => setAmountTendered(e.target.value.replace(/\D/g, ''))}
-                                        className="w-full bg-surface-container-lowest border border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary rounded-xl py-3 pl-10 pr-10 font-body-md font-bold text-base"
+                                        className="w-full bg-surface-container-lowest border border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary rounded-xl py-2.5 pl-10 pr-10 font-body-md font-bold text-sm sm:text-base"
                                         placeholder="0"
                                     />
                                     {amountTendered && (
@@ -977,14 +982,14 @@ export default function PosIndex({ categories, products, tenant, currentOutlet =
                                     )}
                                 </div>
 
-                                {/* Tombol Cepat Pecahan Uang: 20.000, 50.000, 100.000, dan Uang Pas di paling kanan */}
-                                <div className="grid grid-cols-4 gap-1.5 pt-1">
+                                {/* Tombol Cepat Pecahan Uang */}
+                                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
                                     {[20000, 50000, 100000].map((nominal) => (
                                         <button
                                             key={nominal}
                                             type="button"
                                             onClick={() => setAmountTendered(String(nominal))}
-                                            className={`py-2 px-1 text-xs font-bold rounded-xl border transition-all active:scale-95 flex items-center justify-center whitespace-nowrap ${
+                                            className={`py-1.5 px-1 text-xs font-bold rounded-lg border transition-all active:scale-95 flex items-center justify-center whitespace-nowrap ${
                                                 Number(amountTendered) === nominal
                                                     ? 'bg-primary text-on-primary border-primary shadow-xs'
                                                     : 'bg-surface-container-lowest hover:bg-surface-container-high border-outline-variant text-on-surface shadow-2xs'
@@ -997,7 +1002,7 @@ export default function PosIndex({ categories, products, tenant, currentOutlet =
                                         type="button"
                                         disabled={total <= 0}
                                         onClick={() => setAmountTendered(String(Math.round(total)))}
-                                        className={`py-2 px-1 text-xs font-bold rounded-xl border transition-all active:scale-95 flex items-center justify-center whitespace-nowrap ${
+                                        className={`py-1.5 px-1 text-xs font-bold rounded-lg border transition-all active:scale-95 flex items-center justify-center whitespace-nowrap ${
                                             total > 0 && Number(amountTendered) === Math.round(total)
                                                 ? 'bg-primary text-on-primary border-primary shadow-xs font-bold'
                                                 : 'bg-surface-container-lowest hover:bg-surface-container-high border-outline-variant text-on-surface shadow-2xs disabled:opacity-50'
@@ -1009,14 +1014,14 @@ export default function PosIndex({ categories, products, tenant, currentOutlet =
                                 </div>
 
                                 {amountTendered && Number(amountTendered) >= total && (
-                                    <div className="flex items-center justify-between bg-green-500/10 border border-green-500/20 rounded-xl px-3 py-2 text-green-800 dark:text-green-300 font-label-md font-bold">
+                                    <div className="flex items-center justify-between bg-green-500/10 border border-green-500/20 rounded-xl px-3 py-1.5 text-green-800 dark:text-green-300 font-label-md font-bold">
                                         <span className="text-xs">Kembalian:</span>
                                         <span className="text-sm">{formatRupiah(Number(amountTendered) - total)}</span>
                                     </div>
                                 )}
 
                                 {amountTendered && Number(amountTendered) < total && (
-                                    <div className="flex items-center justify-between bg-error/10 border border-error/20 rounded-xl px-3 py-1.5 text-error font-label-sm font-semibold">
+                                    <div className="flex items-center justify-between bg-error/10 border border-error/20 rounded-xl px-3 py-1 text-error font-label-sm font-semibold">
                                         <span className="text-xs">Uang Kurang:</span>
                                         <span className="text-xs">{formatRupiah(total - Number(amountTendered))}</span>
                                     </div>
@@ -1025,83 +1030,124 @@ export default function PosIndex({ categories, products, tenant, currentOutlet =
                         )}
 
                         {paymentMethod === 'qris' && (
-                            <div className="pt-4 flex flex-col items-center justify-center space-y-3 bg-surface-container-lowest border border-outline-variant rounded-xl p-4">
+                            <div className="flex flex-col space-y-2.5 bg-surface-container-lowest border border-outline-variant rounded-xl p-3">
                                 {isStaticQris ? (
                                     <>
-                                        <div className="flex items-center space-x-1.5 bg-secondary-fixed text-on-secondary-fixed px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                                            <span className="material-symbols-outlined text-sm">qr_code_2</span>
-                                            <span>QRIS Toko Statis</span>
-                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-1.5 bg-secondary-fixed text-on-secondary-fixed px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider">
+                                                <span className="material-symbols-outlined text-xs">qr_code_2</span>
+                                                <span>QRIS Toko Statis</span>
+                                            </div>
 
-                                        <div className="w-52 h-52 bg-white p-2.5 rounded-2xl border-2 border-secondary flex items-center justify-center shadow-sm relative">
-                                            {tenant?.qris_image_url ? (
-                                                <img 
-                                                    src={tenant.qris_image_url} 
-                                                    alt="Barcode QRIS Toko" 
-                                                    className="w-full h-full object-contain" 
-                                                />
-                                            ) : (
-                                                <div className="text-center p-3">
-                                                    <span className="material-symbols-outlined text-4xl text-outline mb-1 block">
-                                                        broken_image
-                                                    </span>
-                                                    <span className="font-label-sm font-bold text-on-surface block">
-                                                        Foto QRIS Belum Ada
-                                                    </span>
-                                                    <span className="font-body-sm text-[11px] text-on-surface-variant block mt-1">
-                                                        Upload barcode di Pengaturan Toko
-                                                    </span>
-                                                </div>
+                                            {tenant?.qris_image_url && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowQrisPreviewModal(true)}
+                                                    className="text-xs font-semibold text-secondary hover:text-primary flex items-center space-x-1 px-2 py-0.5 rounded-md hover:bg-surface-container-high transition cursor-pointer"
+                                                    title="Klik untuk melihat barcode QRIS lebih besar"
+                                                >
+                                                    <span className="material-symbols-outlined text-sm">fullscreen</span>
+                                                    <span>Perbesar QR</span>
+                                                </button>
                                             )}
                                         </div>
 
-                                        <div className="text-center space-y-1 w-full bg-surface-container-low p-3 rounded-xl border border-outline-variant">
-                                            <span className="font-body-sm text-xs text-on-surface-variant block">
-                                                Minta pelanggan scan & masukkan nominal:
-                                            </span>
-                                            <span className="font-headline-sm font-bold text-primary block text-xl">
-                                                {formatRupiah(total)}
-                                            </span>
+                                        <div className="flex items-center gap-3">
+                                            {/* QR Thumbnail */}
+                                            <div 
+                                                onClick={() => tenant?.qris_image_url && setShowQrisPreviewModal(true)}
+                                                className={`w-24 h-24 sm:w-28 sm:h-28 bg-white p-1.5 rounded-xl border-2 border-secondary/40 flex items-center justify-center shadow-xs relative shrink-0 group ${tenant?.qris_image_url ? 'cursor-pointer hover:border-secondary transition' : ''}`}
+                                                title={tenant?.qris_image_url ? "Klik untuk memperbesar QRIS" : "QRIS Belum Ada"}
+                                            >
+                                                {tenant?.qris_image_url ? (
+                                                    <>
+                                                        <img 
+                                                            src={tenant.qris_image_url} 
+                                                            alt="Barcode QRIS Toko" 
+                                                            className="w-full h-full object-contain" 
+                                                        />
+                                                        <div className="absolute inset-0 bg-primary/20 backdrop-blur-[1px] rounded-xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                                                            <span className="material-symbols-outlined text-white text-lg drop-shadow">zoom_in</span>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="text-center p-1">
+                                                        <span className="material-symbols-outlined text-2xl text-outline mb-0.5 block">
+                                                            broken_image
+                                                        </span>
+                                                        <span className="text-[10px] font-bold text-on-surface block leading-tight">
+                                                            Belum Ada
+                                                        </span>
+                                                        <span className="text-[9px] text-on-surface-variant block mt-0.5">
+                                                            Atur di Pengaturan
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Info & Nominal */}
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                <span className="text-[11px] text-on-surface-variant font-medium block">
+                                                    Minta scan & transfer:
+                                                </span>
+                                                <span className="font-headline-sm font-extrabold text-primary text-lg sm:text-xl truncate block tracking-tight">
+                                                    {formatRupiah(total)}
+                                                </span>
+                                                <p className="text-[10.5px] text-on-surface-variant leading-tight mt-1">
+                                                    Pelanggan memasukkan nominal tagihan di atas ke aplikasi e-Wallet/M-Banking.
+                                                </p>
+                                            </div>
                                         </div>
 
                                         {tenant?.qris_image_url ? (
-                                            <label className="flex items-start space-x-2.5 w-full bg-secondary-container/20 p-3 rounded-xl border border-secondary-container cursor-pointer select-none">
+                                            <label className="flex items-start space-x-2 w-full bg-secondary-container/20 hover:bg-secondary-container/30 p-2 rounded-lg border border-secondary-container cursor-pointer select-none transition">
                                                 <input 
                                                     type="checkbox" 
                                                     checked={isQrisVerified} 
                                                     onChange={(e) => setIsQrisVerified(e.target.checked)}
-                                                    className="mt-0.5 w-4 h-4 text-secondary rounded border-outline-variant focus:ring-secondary cursor-pointer"
+                                                    className="mt-0.5 w-4 h-4 text-secondary rounded border-outline-variant focus:ring-secondary cursor-pointer shrink-0"
                                                 />
-                                                <span className="font-label-sm text-on-surface text-xs font-semibold leading-snug">
-                                                    Kasir sudah verifikasi: bukti transfer pelanggan telah berhasil & dana masuk.
+                                                <span className="font-label-sm text-on-surface text-[11px] font-semibold leading-snug">
+                                                    Kasir sudah verifikasi: bukti transfer berhasil & dana masuk.
                                                 </span>
                                             </label>
                                         ) : (
-                                            <p className="text-xs text-error font-medium text-center">
+                                            <p className="text-[11px] text-error font-medium text-center">
                                                 Barcode QRIS belum diunggah di Pengaturan Toko.
                                             </p>
                                         )}
                                     </>
                                 ) : (
                                     <>
-                                        <span className="font-label-md font-bold text-on-surface">Scan untuk Membayar</span>
-                                        <div className="w-48 h-48 bg-white p-2 rounded-lg border-2 border-primary border-dashed flex items-center justify-center relative">
-                                            {isLoadingQris && (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                                                    <span className="material-symbols-outlined animate-spin text-primary">sync</span>
-                                                </div>
-                                            )}
-                                            {qrisError ? (
-                                                <div className="text-center font-label-sm text-error px-2">{qrisError}</div>
-                                            ) : qrisUrl ? (
-                                                <img src={qrisUrl} alt="QRIS Barcode" className="w-full h-full object-contain" />
-                                            ) : (
-                                                <span className="text-on-surface-variant font-label-sm">Memuat QRIS...</span>
-                                            )}
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-label-sm font-bold text-on-surface text-xs">QRIS Dinamis</span>
+                                            <span className="text-[10px] text-secondary font-bold">Otomatis Terverifikasi</span>
                                         </div>
-                                        <span className="font-body-sm text-on-surface-variant text-center text-xs">
-                                            Pastikan pelanggan melakukan scan menggunakan M-Banking atau e-Wallet.
-                                        </span>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-24 h-24 sm:w-28 sm:h-28 bg-white p-1.5 rounded-xl border-2 border-primary border-dashed flex items-center justify-center relative shrink-0">
+                                                {isLoadingQris && (
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                                                        <span className="material-symbols-outlined animate-spin text-primary">sync</span>
+                                                    </div>
+                                                )}
+                                                {qrisError ? (
+                                                    <div className="text-center font-label-sm text-error text-[10px] px-1">{qrisError}</div>
+                                                ) : qrisUrl ? (
+                                                    <img src={qrisUrl} alt="QRIS Barcode" className="w-full h-full object-contain" />
+                                                ) : (
+                                                    <span className="text-on-surface-variant text-[10px]">Memuat...</span>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <span className="text-[11px] text-on-surface-variant font-medium block">Nominal Tagihan:</span>
+                                                <span className="font-headline-sm font-extrabold text-primary text-lg sm:text-xl truncate block">
+                                                    {formatRupiah(total)}
+                                                </span>
+                                                <p className="text-[10.5px] text-on-surface-variant leading-tight mt-1">
+                                                    Scan QRIS menggunakan GoPay, OVO, Dana, BCA, atau mobile banking lainnya.
+                                                </p>
+                                            </div>
+                                        </div>
                                     </>
                                 )}
                             </div>
@@ -1115,7 +1161,7 @@ export default function PosIndex({ categories, products, tenant, currentOutlet =
                                 (paymentMethod === 'cash' && Number(amountTendered) < total) ||
                                 (paymentMethod === 'qris' && isStaticQris && (!tenant?.qris_image_url || !isQrisVerified))
                             }
-                            className="w-full py-4 bg-secondary hover:bg-on-secondary-container active:scale-98 text-on-secondary rounded-xl font-headline-sm font-bold shadow-md transition-all disabled:opacity-50 mt-4"
+                            className="w-full py-3 sm:py-3.5 bg-secondary hover:bg-on-secondary-container active:scale-98 text-on-secondary rounded-xl font-headline-sm font-bold shadow-md transition-all disabled:opacity-50 mt-1 cursor-pointer"
                         >
                             {processing ? 'Memproses...' : 'Proses Pembayaran'}
                         </button>
@@ -1520,6 +1566,65 @@ export default function PosIndex({ categories, products, tenant, currentOutlet =
                 user={auth?.user}
                 storeName={tenant?.name}
             />
+
+            {/* Modal Pop-up QRIS Preview Layar Penuh (Ukuran Besar & Sangat Jelas untuk Pelanggan Scan) */}
+            {showQrisPreviewModal && (tenant?.qris_image_url || qrisUrl) && (
+                <div 
+                    className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+                    onClick={() => setShowQrisPreviewModal(false)}
+                >
+                    <div 
+                        className="bg-surface rounded-3xl max-w-lg sm:max-w-xl w-full max-h-[94vh] p-4 sm:p-6 shadow-2xl border border-outline-variant flex flex-col items-center text-center relative animate-in zoom-in-95 duration-200 overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button 
+                            type="button"
+                            onClick={() => setShowQrisPreviewModal(false)}
+                            className="absolute top-3.5 right-3.5 sm:top-5 sm:right-5 w-9 h-9 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center justify-center transition cursor-pointer shadow-xs"
+                            title="Tutup Preview QRIS"
+                        >
+                            <span className="material-symbols-outlined text-base">close</span>
+                        </button>
+
+                        {/* Store Badge */}
+                        <div className="flex items-center space-x-1.5 bg-secondary-fixed text-on-secondary-fixed px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
+                            <span className="material-symbols-outlined text-sm">qr_code_2</span>
+                            <span>QRIS Pembayaran &bull; {tenant?.name || 'Toko'}</span>
+                        </div>
+
+                        {/* Large High-Visibility QR Container */}
+                        <div className="w-full max-w-[480px] h-[55vh] sm:h-[62vh] max-h-[540px] min-h-[360px] bg-white p-3 sm:p-4 rounded-2xl border-2 border-secondary shadow-lg flex items-center justify-center my-2">
+                            <img 
+                                src={tenant?.qris_image_url || qrisUrl} 
+                                alt="Barcode QRIS Toko" 
+                                className="w-full h-full object-contain select-none" 
+                            />
+                        </div>
+
+                        {/* Total Payment Amount Notice */}
+                        <div className="w-full max-w-[480px] bg-surface-container-low p-3.5 sm:p-4 rounded-2xl border border-outline-variant mt-2 space-y-1 shadow-2xs">
+                            <span className="text-xs sm:text-sm text-on-surface-variant font-medium block">
+                                Minta pelanggan scan & transfer nominal pas:
+                            </span>
+                            <span className="font-headline-md font-black text-primary text-2xl sm:text-3xl md:text-4xl block tracking-tight">
+                                {formatRupiah(total)}
+                            </span>
+                            <span className="text-[11px] text-on-surface-variant block">
+                                Mendukung semua aplikasi e-Wallet (GoPay, OVO, Dana, ShopeePay) & Mobile Banking (BCA, BRI, Mandiri, dll)
+                            </span>
+                        </div>
+
+                        {/* Close Action Button */}
+                        <button 
+                            type="button"
+                            onClick={() => setShowQrisPreviewModal(false)}
+                            className="w-full max-w-[480px] py-3 bg-secondary hover:bg-on-secondary-container text-on-secondary rounded-xl font-bold font-label-md text-sm sm:text-base mt-4 transition active:scale-95 cursor-pointer shadow-md"
+                        >
+                            Tutup Tampilan QRIS
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
