@@ -17,7 +17,7 @@ export default function OutletsIndex({ outlets = [], quota = {}, tenant = null }
     });
 
     const openAddModal = () => {
-        if (!quota.can_add) {
+        if (!quota.is_enterprise || !quota.can_add) {
             setShowUpgradeModal(true);
             return;
         }
@@ -113,15 +113,20 @@ export default function OutletsIndex({ outlets = [], quota = {}, tenant = null }
                             onClick={openAddModal}
                             id="btn-add-outlet"
                             className={`px-5 py-2.5 rounded-xl font-label-md font-bold transition-all shadow-sm flex items-center space-x-2 cursor-pointer ${
-                                quota.can_add
+                                quota.is_enterprise && quota.can_add
                                     ? 'bg-secondary text-on-secondary hover:bg-secondary/90 active:scale-95'
-                                    : 'bg-surface-container-high text-on-surface-variant hover:border-secondary border border-outline-variant'
+                                    : 'bg-surface-container-high text-on-surface-variant hover:border-secondary/40 border border-outline-variant'
                             }`}
                         >
                             <span className="material-symbols-outlined text-lg">
-                                {quota.can_add ? 'add_business' : 'lock'}
+                                {quota.is_enterprise && quota.can_add ? 'add_business' : 'lock'}
                             </span>
                             <span>Tambah Cabang Baru</span>
+                            {!quota.is_enterprise && (
+                                <span className="bg-secondary/15 text-secondary border border-secondary/30 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full uppercase">
+                                    Enterprise
+                                </span>
+                            )}
                         </button>
                     </div>
                 </div>
@@ -142,7 +147,7 @@ export default function OutletsIndex({ outlets = [], quota = {}, tenant = null }
                         <span className="material-symbols-outlined text-base">swap_horiz</span>
                         <span>Transfer Stok Antar-Cabang</span>
                         {quota.is_enterprise && (
-                            <span className="bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                            <span className="bg-secondary/15 text-secondary border border-secondary/30 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
                                 Enterprise
                             </span>
                         )}
@@ -163,206 +168,290 @@ export default function OutletsIndex({ outlets = [], quota = {}, tenant = null }
                     </div>
                 )}
 
-                {/* Quota & Subscription Status Card */}
-                <div className={`p-5 sm:p-6 rounded-3xl border-2 transition-all shadow-sm ${
-                    quota.is_enterprise
-                        ? 'bg-surface-container-lowest border-secondary/40 ring-1 ring-secondary/20'
-                        : 'bg-surface-container-lowest border-outline-variant'
-                }`}>
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                        
-                        {/* Quota Info */}
-                        <div className="space-y-3 flex-1">
-                            <div className="flex items-center space-x-2">
-                                <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider ${
-                                    quota.is_enterprise 
-                                        ? 'bg-purple-100 text-purple-900 border border-purple-300'
-                                        : 'bg-amber-100 text-amber-900 border border-amber-300'
-                                }`}>
-                                    {quota.plan_name}
-                                </span>
-                                <span className="text-xs text-on-surface-variant font-medium">
-                                    {quota.is_enterprise ? 'Multi-Cabang Hingga 5 Outlet' : 'Single Outlet (Maks. 1 Cabang)'}
-                                </span>
-                            </div>
-
-                            <div className="flex items-baseline space-x-2">
-                                <h3 className="font-headline-md font-bold text-primary text-xl sm:text-2xl">
-                                    {quota.used} / {quota.max} Cabang Aktif
-                                </h3>
-                                <span className="text-xs text-on-surface-variant">
-                                    ({quota.max - quota.used} slot cabang tersisa)
-                                </span>
-                            </div>
-
-                            {/* Progress Bar */}
-                            <div className="w-full max-w-md bg-surface-container-high h-2.5 rounded-full overflow-hidden">
-                                <div 
-                                    className={`h-full transition-all duration-500 rounded-full ${
-                                        percentUsed >= 100 
-                                            ? 'bg-amber-500' 
-                                            : quota.is_enterprise 
-                                            ? 'bg-secondary' 
-                                            : 'bg-primary'
-                                    }`}
-                                    style={{ width: `${percentUsed}%` }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Upgrade Notice for non-Enterprise or Promotion */}
-                        {!quota.is_enterprise ? (
-                            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 lg:max-w-md">
-                                <div className="space-y-1">
-                                    <div className="flex items-center space-x-1.5 text-amber-900 font-bold text-xs sm:text-sm">
-                                        <span className="material-symbols-outlined text-base text-amber-800">stars</span>
-                                        <span>Buka Cabang Baru?</span>
-                                    </div>
-                                    <p className="text-xs text-amber-800/90 leading-relaxed">
-                                        Paket {quota.plan_name} dibatasi 1 outlet. Beralih ke <strong>Enterprise</strong> untuk membuka hingga 5 cabang!
-                                    </p>
-                                </div>
-                                <Link
-                                    href={route('subscription.plans')}
-                                    className="px-4 py-2 bg-secondary text-on-secondary hover:bg-secondary/90 active:scale-95 text-xs font-bold rounded-xl transition shadow-xs shrink-0 whitespace-nowrap"
-                                >
-                                    Upgrade ke Enterprise
-                                </Link>
-                            </div>
-                        ) : (
-                            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 sm:p-5 flex items-center space-x-3 lg:max-w-md">
-                                <span className="material-symbols-outlined text-purple-700 text-3xl shrink-0">verified</span>
-                                <div className="text-xs text-purple-900">
-                                    <span className="font-bold block text-sm">Fitur Enterprise Aktif</span>
-                                    <span>Toko Anda memiliki hak membuat hingga 5 cabang outlet dan transfer stok antar-cabang.</span>
-                                </div>
-                            </div>
-                        )}
-
-                    </div>
-                </div>
-
-                {/* Outlets Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {outlets.map((outlet, index) => (
-                        <div
-                            key={outlet.id}
-                            className={`bg-surface-container-lowest rounded-3xl p-5 sm:p-6 border-2 transition-all flex flex-col justify-between relative shadow-sm hover:shadow-md ${
-                                outlet.is_main
-                                    ? 'border-secondary ring-2 ring-secondary/20 shadow-md'
-                                    : 'border-outline-variant hover:border-secondary/40'
-                            }`}
-                        >
-                            {/* Main Branch Badge */}
-                            {outlet.is_main && (
-                                <div className="absolute -top-3.5 left-6 bg-secondary text-on-secondary text-[11px] font-bold uppercase tracking-wider py-0.5 px-3 rounded-full shadow-xs flex items-center space-x-1">
-                                    <span className="material-symbols-outlined text-xs">hotel_class</span>
-                                    <span>Cabang Utama (Pusat)</span>
-                                </div>
-                            )}
-
-                            <div>
-                                {/* Card Header */}
-                                <div className="flex items-start justify-between gap-2 mt-1">
-                                    <div className="flex items-center space-x-3">
-                                        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold ${
-                                            outlet.is_main 
-                                                ? 'bg-secondary/15 text-secondary' 
-                                                : 'bg-surface-container-high text-on-surface'
-                                        }`}>
-                                            <span className="material-symbols-outlined text-2xl">store</span>
-                                        </div>
-                                        <div>
-                                            <h4 className="font-headline-sm font-bold text-primary text-base sm:text-lg leading-tight">
-                                                {outlet.name}
-                                            </h4>
-                                            <span className="text-[11px] text-on-surface-variant">
-                                                Cabang #{index + 1}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                        outlet.is_active 
-                                            ? 'bg-green-100 text-green-800' 
-                                            : 'bg-surface-container-highest text-on-surface-variant'
-                                    }`}>
-                                        {outlet.is_active ? 'Aktif' : 'Nonaktif'}
-                                    </span>
-                                </div>
-
-                                {/* Details */}
-                                <div className="mt-4 pt-4 border-t border-outline-variant space-y-2.5 text-xs text-on-surface-variant">
-                                    <div className="flex items-start space-x-2">
-                                        <span className="material-symbols-outlined text-base text-on-surface-variant/70 shrink-0 mt-0.5">location_on</span>
-                                        <span className="leading-relaxed line-clamp-2">
-                                            {outlet.address || 'Alamat cabang belum diatur.'}
+                {quota.is_enterprise ? (
+                    <>
+                        {/* Quota & Subscription Status Card (Enterprise) */}
+                        <div className="p-5 sm:p-6 rounded-3xl border-2 bg-surface-container-lowest border-secondary/40 ring-1 ring-secondary/20 transition-all shadow-sm">
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                                
+                                {/* Quota Info */}
+                                <div className="space-y-3 flex-1">
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider bg-secondary/15 text-secondary border border-secondary/30">
+                                            {quota.plan_name}
+                                        </span>
+                                        <span className="text-xs text-on-surface-variant font-medium">
+                                            Multi-Cabang Hingga 5 Outlet
                                         </span>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                        <span className="material-symbols-outlined text-base text-on-surface-variant/70 shrink-0">call</span>
-                                        <span>{outlet.phone || 'No. telepon belum diatur'}</span>
+
+                                    <div className="flex items-baseline space-x-2">
+                                        <h3 className="font-headline-md font-bold text-primary text-xl sm:text-2xl">
+                                            {quota.used} / {quota.max} Cabang Aktif
+                                        </h3>
+                                        <span className="text-xs text-on-surface-variant">
+                                            ({Math.max(0, quota.max - quota.used)} slot cabang tersisa)
+                                        </span>
+                                    </div>
+
+                                    {/* Progress Bar */}
+                                    <div className="w-full max-w-md bg-surface-container-high h-2.5 rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full transition-all duration-500 rounded-full bg-secondary"
+                                            style={{ width: `${percentUsed}%` }}
+                                        />
                                     </div>
                                 </div>
 
-                                {/* Stats Badges */}
-                                <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-outline-variant/60">
-                                    <div className="bg-surface-container-low rounded-xl p-2 text-center">
-                                        <span className="block text-[10px] text-on-surface-variant/80 font-medium">Kasir Bertugas</span>
-                                        <span className="font-bold text-sm text-primary">{outlet.users_count || 0} Akun</span>
-                                    </div>
-                                    <div className="bg-surface-container-low rounded-xl p-2 text-center">
-                                        <span className="block text-[10px] text-on-surface-variant/80 font-medium">Total Pesanan</span>
-                                        <span className="font-bold text-sm text-primary">{outlet.orders_count || 0} Transaksi</span>
+                                <div className="bg-secondary/10 border border-secondary/30 rounded-2xl p-4 sm:p-5 flex items-center space-x-3 lg:max-w-md">
+                                    <span className="material-symbols-outlined text-secondary text-3xl shrink-0">verified</span>
+                                    <div className="text-xs text-primary">
+                                        <span className="font-bold block text-sm">Fitur Enterprise Aktif</span>
+                                        <span>Toko Anda memiliki hak membuat hingga 5 cabang outlet dan transfer stok antar-cabang.</span>
                                     </div>
                                 </div>
+
                             </div>
-
-                            {/* Card Actions Footer */}
-                            <div className="mt-5 pt-4 border-t border-outline-variant flex items-center justify-between gap-2">
-                                {!outlet.is_main ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => handleSetMain(outlet)}
-                                        className="text-xs font-bold text-secondary hover:underline cursor-pointer flex items-center space-x-1"
-                                        title="Jadikan cabang ini sebagai pusat operasional"
-                                    >
-                                        <span className="material-symbols-outlined text-sm">check_circle</span>
-                                        <span>Jadikan Pusat</span>
-                                    </button>
-                                ) : (
-                                    <span className="text-[11px] font-semibold text-secondary flex items-center space-x-1">
-                                        <span className="material-symbols-outlined text-sm">verified</span>
-                                        <span>Cabang Utama</span>
-                                    </span>
-                                )}
-
-                                <div className="flex items-center space-x-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => openEditModal(outlet)}
-                                        className="p-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition cursor-pointer"
-                                        title="Ubah data cabang"
-                                    >
-                                        <span className="material-symbols-outlined text-base">edit</span>
-                                    </button>
-
-                                    {!outlet.is_main && outlets.length > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => confirmDelete(outlet)}
-                                            className="p-2 rounded-xl bg-surface-container-high hover:bg-red-100 text-error text-xs font-semibold transition cursor-pointer"
-                                            title="Hapus cabang ini"
-                                        >
-                                            <span className="material-symbols-outlined text-base">delete</span>
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
                         </div>
-                    ))}
-                </div>
+
+                        {/* Outlets Grid */}
+                        {outlets.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                                {outlets.map((outlet, index) => (
+                                    <div
+                                        key={outlet.id}
+                                        className={`bg-surface-container-lowest rounded-3xl p-5 sm:p-6 border-2 transition-all flex flex-col justify-between relative shadow-sm hover:shadow-md ${
+                                            outlet.is_main
+                                                ? 'border-secondary ring-2 ring-secondary/20 shadow-md'
+                                                : 'border-outline-variant hover:border-secondary/40'
+                                        }`}
+                                    >
+                                        {/* Main Branch Badge */}
+                                        {outlet.is_main && (
+                                            <div className="absolute -top-3.5 left-6 bg-secondary text-on-secondary text-[11px] font-bold uppercase tracking-wider py-0.5 px-3 rounded-full shadow-xs flex items-center space-x-1">
+                                                <span className="material-symbols-outlined text-xs">hotel_class</span>
+                                                <span>Cabang Utama (Pusat)</span>
+                                            </div>
+                                        )}
+
+                                        <div>
+                                            {/* Card Header */}
+                                            <div className="flex items-start justify-between gap-2 mt-1">
+                                                <div className="flex items-center space-x-3">
+                                                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold ${
+                                                        outlet.is_main 
+                                                            ? 'bg-secondary/15 text-secondary' 
+                                                            : 'bg-surface-container-high text-on-surface'
+                                                    }`}>
+                                                        <span className="material-symbols-outlined text-2xl">store</span>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-headline-sm font-bold text-primary text-base sm:text-lg leading-tight">
+                                                            {outlet.name}
+                                                        </h4>
+                                                        <span className="text-[11px] text-on-surface-variant">
+                                                            Cabang #{index + 1}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                    outlet.is_active 
+                                                        ? 'bg-green-100 text-green-800' 
+                                                        : 'bg-surface-container-highest text-on-surface-variant'
+                                                }`}>
+                                                    {outlet.is_active ? 'Aktif' : 'Nonaktif'}
+                                                </span>
+                                            </div>
+
+                                            {/* Details */}
+                                            <div className="mt-4 pt-4 border-t border-outline-variant space-y-2.5 text-xs text-on-surface-variant">
+                                                <div className="flex items-start space-x-2">
+                                                    <span className="material-symbols-outlined text-base text-on-surface-variant/70 shrink-0 mt-0.5">location_on</span>
+                                                    <span className="leading-relaxed line-clamp-2">
+                                                        {outlet.address || 'Alamat cabang belum diatur.'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="material-symbols-outlined text-base text-on-surface-variant/70 shrink-0">call</span>
+                                                    <span>{outlet.phone || 'No. telepon belum diatur'}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Stats Badges */}
+                                            <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-outline-variant/60">
+                                                <div className="bg-surface-container-low rounded-xl p-2 text-center">
+                                                    <span className="block text-[10px] text-on-surface-variant/80 font-medium">Kasir Bertugas</span>
+                                                    <span className="font-bold text-sm text-primary">{outlet.users_count || 0} Akun</span>
+                                                </div>
+                                                <div className="bg-surface-container-low rounded-xl p-2 text-center">
+                                                    <span className="block text-[10px] text-on-surface-variant/80 font-medium">Total Pesanan</span>
+                                                    <span className="font-bold text-sm text-primary">{outlet.orders_count || 0} Transaksi</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Card Actions Footer */}
+                                        <div className="mt-5 pt-4 border-t border-outline-variant flex items-center justify-between gap-2">
+                                            {!outlet.is_main ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSetMain(outlet)}
+                                                    className="text-xs font-bold text-secondary hover:underline cursor-pointer flex items-center space-x-1"
+                                                    title="Jadikan cabang ini sebagai pusat operasional"
+                                                >
+                                                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                                                    <span>Jadikan Pusat</span>
+                                                </button>
+                                            ) : (
+                                                <span className="text-[11px] font-semibold text-secondary flex items-center space-x-1">
+                                                    <span className="material-symbols-outlined text-sm">verified</span>
+                                                    <span>Cabang Utama</span>
+                                                </span>
+                                            )}
+
+                                            <div className="flex items-center space-x-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openEditModal(outlet)}
+                                                    className="p-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition cursor-pointer"
+                                                    title="Ubah data cabang"
+                                                >
+                                                    <span className="material-symbols-outlined text-base">edit</span>
+                                                </button>
+
+                                                {!outlet.is_main && outlets.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => confirmDelete(outlet)}
+                                                        className="p-2 rounded-xl bg-surface-container-high hover:bg-red-100 text-error text-xs font-semibold transition cursor-pointer"
+                                                        title="Hapus cabang ini"
+                                                    >
+                                                        <span className="material-symbols-outlined text-base">delete</span>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="bg-surface-container-lowest rounded-3xl p-10 border border-outline-variant text-center space-y-4 shadow-sm">
+                                <div className="w-16 h-16 rounded-2xl bg-secondary/15 text-secondary flex items-center justify-center mx-auto">
+                                    <span className="material-symbols-outlined text-4xl">storefront</span>
+                                </div>
+                                <div className="max-w-md mx-auto space-y-1">
+                                    <h4 className="font-headline-sm font-bold text-primary text-lg">Belum Ada Cabang Tambahan</h4>
+                                    <p className="text-xs text-on-surface-variant leading-relaxed">
+                                        Toko Anda memiliki hak membuat hingga 5 cabang outlet. Klik tombol di bawah untuk mendaftarkan gerai fisik kedua Anda.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={openAddModal}
+                                    className="px-5 py-2.5 bg-secondary text-on-secondary rounded-xl text-xs font-bold shadow-sm hover:bg-secondary/90 transition inline-flex items-center space-x-2"
+                                >
+                                    <span className="material-symbols-outlined text-base">add_business</span>
+                                    <span>Tambah Cabang Kedua</span>
+                                </button>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <div className="space-y-6">
+                        {/* Locked Enterprise Paywall Banner */}
+                        <div className="bg-gradient-to-br from-surface-container-lowest via-surface-container-low to-secondary-container/20 rounded-3xl border-2 border-secondary/40 shadow-sm p-6 sm:p-8 relative overflow-hidden">
+                            <div className="absolute -top-16 -right-16 w-64 h-64 bg-secondary/15 rounded-full blur-3xl pointer-events-none"></div>
+                            <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-secondary-fixed-dim/20 rounded-full blur-3xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                                <div className="space-y-3 max-w-2xl">
+                                    <div className="inline-flex items-center space-x-2 bg-secondary/10 text-secondary px-3.5 py-1 rounded-full text-xs font-bold border border-secondary/30 uppercase tracking-wide">
+                                        <span className="material-symbols-outlined text-sm">workspace_premium</span>
+                                        <span>Fitur Eksklusif Paket Enterprise</span>
+                                    </div>
+                                    
+                                    <h3 className="font-headline-md font-bold text-primary text-xl sm:text-2xl">
+                                        Fitur Manajemen Cabang Toko Terkunci
+                                    </h3>
+                                    
+                                    <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+                                        Fitur <strong>Manajemen Multi-Cabang Outlet</strong> dan <strong>Transfer Stok Antar-Cabang</strong> dikunci secara eksklusif untuk pelanggan <strong>Paket Enterprise</strong>. Beralih ke paket Enterprise untuk membuka kendali penuh multi-gerai toko dalam satu dashboard terpusat.
+                                    </p>
+
+                                    {/* Feature Highlights Grid */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 text-xs text-on-surface">
+                                        <div className="flex items-center space-x-2">
+                                            <span className="material-symbols-outlined text-secondary text-base shrink-0">check_circle</span>
+                                            <span>Membuka hingga <strong>5 Cabang Gerai Fisik</strong></span>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <span className="material-symbols-outlined text-secondary text-base shrink-0">check_circle</span>
+                                            <span>Transfer & Mutasi Stok Antar-Cabang Real-Time</span>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <span className="material-symbols-outlined text-secondary text-base shrink-0">check_circle</span>
+                                            <span>Penugasan Akun Kasir Spesifik per Cabang</span>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <span className="material-symbols-outlined text-secondary text-base shrink-0">check_circle</span>
+                                            <span>Laporan Finansial Konsolidasi & per Cabang</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Upgrade CTA Card */}
+                                <div className="w-full lg:w-auto shrink-0 bg-surface-container-lowest p-5 sm:p-6 rounded-2xl border border-outline-variant shadow-md flex flex-col items-center text-center space-y-3 min-w-[280px]">
+                                    <div className="w-12 h-12 rounded-2xl bg-secondary/15 text-secondary flex items-center justify-center shadow-xs">
+                                        <span className="material-symbols-outlined text-2xl">lock</span>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-on-surface-variant">Paket Toko Saat Ini:</div>
+                                        <div className="font-bold text-sm text-primary uppercase">
+                                            {quota.plan_name || 'Starter'}
+                                        </div>
+                                        <div className="text-[11px] text-secondary font-semibold mt-0.5">
+                                            Single Store Mode (Maks. 1 Toko Utama)
+                                        </div>
+                                    </div>
+                                    <Link
+                                        href={route('subscription.plans')}
+                                        className="w-full py-2.5 px-4 bg-secondary hover:bg-secondary/90 active:scale-95 text-on-secondary font-bold text-xs sm:text-sm rounded-xl text-center shadow-md transition flex items-center justify-center space-x-2 cursor-pointer"
+                                    >
+                                        <span className="material-symbols-outlined text-base">stars</span>
+                                        <span>Upgrade ke Enterprise</span>
+                                    </Link>
+                                    <span className="text-[10px] text-on-surface-variant">Mulai Rp299.000 / bulan</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Read-Only Current Single Store Status */}
+                        <div className="bg-surface-container-lowest rounded-3xl p-5 sm:p-6 border border-outline-variant shadow-sm space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-outline-variant pb-3">
+                                <div className="flex items-center space-x-2.5">
+                                    <div className="w-10 h-10 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center font-bold">
+                                        <span className="material-symbols-outlined text-xl">store</span>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-headline-sm font-bold text-primary text-base">
+                                            {tenant?.name || 'Toko Utama'} (Gerai Utama)
+                                        </h4>
+                                        <p className="text-xs text-on-surface-variant">Pusat operasional dan titik kasir tunggal</p>
+                                    </div>
+                                </div>
+                                <span className="text-xs bg-surface-container-high text-on-surface-variant font-semibold px-3 py-1 rounded-full flex items-center space-x-1.5 self-start sm:self-auto">
+                                    <span className="material-symbols-outlined text-xs text-amber-600">lock</span>
+                                    <span>Single Outlet Mode</span>
+                                </span>
+                            </div>
+                            <p className="text-xs text-on-surface-variant leading-relaxed">
+                                Toko Anda saat ini beroperasi dalam mode <strong>Single Outlet</strong>. Seluruh transaksi kasir, katalog produk, dan laporan keuangan terhubung langsung ke gerai utama ini. Untuk membuka gerai fisik tambahan (Cabang #2 s/d #5), silakan upgrade ke Paket Enterprise.
+                            </p>
+                        </div>
+                    </div>
+                )}
 
             </main>
 
@@ -493,12 +582,12 @@ export default function OutletsIndex({ outlets = [], quota = {}, tenant = null }
                             </p>
                         </div>
 
-                        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-left space-y-2">
-                            <div className="text-xs font-bold text-purple-900 flex items-center space-x-1.5">
-                                <span className="material-symbols-outlined text-sm text-purple-700">stars</span>
+                        <div className="bg-secondary/10 border border-secondary/30 rounded-2xl p-4 text-left space-y-2">
+                            <div className="text-xs font-bold text-primary flex items-center space-x-1.5">
+                                <span className="material-symbols-outlined text-sm text-secondary">stars</span>
                                 <span>Keuntungan Paket Enterprise:</span>
                             </div>
-                            <ul className="text-xs text-purple-900/90 space-y-1 list-disc list-inside">
+                            <ul className="text-xs text-on-surface-variant space-y-1 list-disc list-inside">
                                 <li>Membuka hingga <strong>5 Cabang Outlet</strong></li>
                                 <li>Transfer Stok Antar-Cabang</li>
                                 <li>Unlimited Produk & Akun Kasir</li>

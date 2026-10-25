@@ -204,11 +204,17 @@ class Tenant extends Model
 
     public function maxOutlets(): int
     {
-        return $this->currentPlan()?->max_outlets ?? 1;
+        if ($this->currentPlan()?->slug !== 'enterprise') {
+            return 0;
+        }
+        return $this->currentPlan()?->max_outlets ?? 5;
     }
 
     public function canAddOutlet(): bool
     {
+        if ($this->currentPlan()?->slug !== 'enterprise') {
+            return false;
+        }
         return $this->outlets()->count() < $this->maxOutlets();
     }
 

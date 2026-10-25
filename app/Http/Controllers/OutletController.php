@@ -21,14 +21,14 @@ class OutletController extends Controller
             ->orderBy('created_at', 'asc')
             ->get() : collect();
 
-        $maxOutlets = $tenant ? $tenant->maxOutlets() : 1;
-        $usedOutlets = $outlets->count();
         $isEnterprise = ($tenant?->currentPlan()?->slug === 'enterprise');
+        $maxOutlets = $isEnterprise ? ($tenant ? $tenant->maxOutlets() : 5) : 0;
+        $usedOutlets = $outlets->count();
 
         $quota = [
             'used' => $usedOutlets,
             'max' => $maxOutlets,
-            'can_add' => $tenant ? $tenant->canAddOutlet() : false,
+            'can_add' => $isEnterprise && ($tenant ? $tenant->canAddOutlet() : false),
             'is_enterprise' => $isEnterprise,
             'plan_name' => $tenant?->currentPlanName() ?? 'Free Trial',
             'plan_slug' => $tenant?->currentPlan()?->slug ?? 'trial',
@@ -51,12 +51,19 @@ class OutletController extends Controller
             abort(403, 'Akses tidak diizinkan.');
         }
 
+        // Fitur khusus paket Enterprise
+        if ($tenant->currentPlan()?->slug !== 'enterprise') {
+            return back()->withErrors([
+                'name' => 'Fitur Manajemen Cabang Outlet eksklusif untuk paket Enterprise. Silakan upgrade paket langganan Anda.',
+            ]);
+        }
+
         // Validasi kuota cabang sesuai paket langganan
         if (!$tenant->canAddOutlet()) {
             $max = $tenant->maxOutlets();
             $planName = $tenant->currentPlanName();
             return back()->withErrors([
-                'name' => "Batas maksimal cabang untuk paket {$planName} adalah {$max} outlet. Untuk mengaktifkan hingga 5 cabang, silakan beralih ke paket Enterprise.",
+                'name' => "Batas maksimal cabang untuk paket {$planName} adalah {$max} outlet.",
             ]);
         }
 
@@ -98,6 +105,12 @@ class OutletController extends Controller
             abort(403, 'Anda tidak memiliki hak akses untuk cabang ini.');
         }
 
+        if ($tenant->currentPlan()?->slug !== 'enterprise') {
+            return back()->withErrors([
+                'error' => 'Fitur Manajemen Cabang Outlet eksklusif untuk paket Enterprise.',
+            ]);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'phone' => 'nullable|string|max:30',
@@ -133,6 +146,12 @@ class OutletController extends Controller
             abort(403, 'Akses ditolak.');
         }
 
+        if ($tenant->currentPlan()?->slug !== 'enterprise') {
+            return back()->withErrors([
+                'error' => 'Fitur Manajemen Cabang Outlet eksklusif untuk paket Enterprise.',
+            ]);
+        }
+
         $tenant->outlets()->update(['is_main' => false]);
         $outlet->update(['is_main' => true, 'is_active' => true]);
 
@@ -147,6 +166,12 @@ class OutletController extends Controller
         $tenant = $request->user()->tenant;
         if (!$tenant || $outlet->tenant_id !== $tenant->id) {
             abort(403, 'Akses ditolak.');
+        }
+
+        if ($tenant->currentPlan()?->slug !== 'enterprise') {
+            return back()->withErrors([
+                'error' => 'Fitur Manajemen Cabang Outlet eksklusif untuk paket Enterprise.',
+            ]);
         }
 
         if ($tenant->outlets()->count() <= 1) {

@@ -106,8 +106,15 @@ export default function StockTransfers({
                                     : 'bg-surface-container-high text-on-surface-variant/60 cursor-not-allowed border border-outline-variant'
                             }`}
                         >
-                            <span className="material-symbols-outlined text-lg">local_shipping</span>
+                            <span className="material-symbols-outlined text-lg">
+                                {!isEnterprise ? 'lock' : 'local_shipping'}
+                            </span>
                             <span>Kirim Stok Baru</span>
+                            {!isEnterprise && (
+                                <span className="bg-secondary/15 text-secondary border border-secondary/30 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full uppercase">
+                                    Enterprise
+                                </span>
+                            )}
                         </button>
                     </div>
                 </div>
@@ -151,22 +158,68 @@ export default function StockTransfers({
 
                 {/* Banner Enterprise or Warning */}
                 {!isEnterprise ? (
-                    <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="flex items-start space-x-3">
-                            <span className="material-symbols-outlined text-amber-800 text-2xl mt-0.5">lock</span>
-                            <div>
-                                <h4 className="font-bold text-sm text-amber-950">Fitur Khusus Paket Enterprise</h4>
-                                <p className="text-xs text-amber-800/90 mt-0.5">
-                                    Paket toko Anda saat ini belum mendukung mutasi stok multi-cabang. Tingkatkan langganan ke paket Enterprise untuk membuka fitur ini.
+                    <div className="bg-gradient-to-br from-surface-container-lowest via-surface-container-low to-secondary-container/20 rounded-3xl border-2 border-secondary/40 shadow-sm p-6 sm:p-8 relative overflow-hidden">
+                        <div className="absolute -top-16 -right-16 w-64 h-64 bg-secondary/15 rounded-full blur-3xl pointer-events-none"></div>
+                        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-secondary-fixed-dim/20 rounded-full blur-3xl pointer-events-none"></div>
+
+                        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                            <div className="space-y-3 max-w-2xl">
+                                <div className="inline-flex items-center space-x-2 bg-secondary/10 text-secondary px-3.5 py-1 rounded-full text-xs font-bold border border-secondary/30 uppercase tracking-wide">
+                                    <span className="material-symbols-outlined text-sm">workspace_premium</span>
+                                    <span>Fitur Eksklusif Paket Enterprise</span>
+                                </div>
+                                
+                                <h3 className="font-headline-md font-bold text-primary text-xl sm:text-2xl">
+                                    Transfer Stok Antar-Cabang Terkunci
+                                </h3>
+                                
+                                <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+                                    Mutasi dan pengiriman inventaris produk antar-gerai fisik secara real-time. Setiap transfer otomatis mengurangi stok di gerai asal dan menambah stok di gerai tujuan setelah diverifikasi kasir penerima. Fitur ini eksklusif untuk pelanggan <strong>Paket Enterprise</strong>.
                                 </p>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 text-xs text-on-surface">
+                                    <div className="flex items-center space-x-2">
+                                        <span className="material-symbols-outlined text-secondary text-base shrink-0">check_circle</span>
+                                        <span>Pengiriman Stok Produk Antar-Cabang</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <span className="material-symbols-outlined text-secondary text-base shrink-0">check_circle</span>
+                                        <span>Status Live Pengiriman (In-Transit & Diterima)</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <span className="material-symbols-outlined text-secondary text-base shrink-0">check_circle</span>
+                                        <span>Konfirmasi Serah Terima oleh Kasir Cabang</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <span className="material-symbols-outlined text-secondary text-base shrink-0">check_circle</span>
+                                        <span>Audit Trail Lengkap & Cegah Selisih Stok</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="w-full lg:w-auto shrink-0 bg-surface-container-lowest p-5 sm:p-6 rounded-2xl border border-outline-variant shadow-md flex flex-col items-center text-center space-y-3 min-w-[280px]">
+                                <div className="w-12 h-12 rounded-2xl bg-secondary/15 text-secondary flex items-center justify-center shadow-xs">
+                                    <span className="material-symbols-outlined text-2xl">lock</span>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-on-surface-variant">Status Akses:</div>
+                                    <div className="font-bold text-sm text-primary uppercase">
+                                        Fitur Terkunci
+                                    </div>
+                                    <div className="text-[11px] text-secondary font-semibold mt-0.5">
+                                        Membutuhkan Paket Enterprise
+                                    </div>
+                                </div>
+                                <Link
+                                    href={route('subscription.plans')}
+                                    className="w-full py-2.5 px-4 bg-secondary hover:bg-secondary/90 active:scale-95 text-on-secondary font-bold text-xs sm:text-sm rounded-xl text-center shadow-md transition flex items-center justify-center space-x-2 cursor-pointer"
+                                >
+                                    <span className="material-symbols-outlined text-base">stars</span>
+                                    <span>Upgrade ke Enterprise</span>
+                                </Link>
+                                <span className="text-[10px] text-on-surface-variant">Mulai Rp299.000 / bulan</span>
                             </div>
                         </div>
-                        <Link
-                            href={route('subscription.plans')}
-                            className="px-4 py-2 bg-secondary text-on-secondary rounded-xl text-xs font-bold shadow-xs hover:bg-secondary/90 transition shrink-0"
-                        >
-                            Upgrade ke Enterprise
-                        </Link>
                     </div>
                 ) : outlets.length < 2 ? (
                     <div className="bg-blue-50 border border-blue-200 rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -187,9 +240,9 @@ export default function StockTransfers({
                         </Link>
                     </div>
                 ) : (
-                    <div className="bg-purple-50 border border-purple-200 rounded-3xl p-4 sm:p-5 flex items-center space-x-3">
-                        <span className="material-symbols-outlined text-purple-700 text-3xl shrink-0">verified</span>
-                        <div className="text-xs text-purple-900">
+                    <div className="bg-secondary/10 border border-secondary/30 rounded-3xl p-4 sm:p-5 flex items-center space-x-3">
+                        <span className="material-symbols-outlined text-secondary text-3xl shrink-0">verified</span>
+                        <div className="text-xs text-primary">
                             <span className="font-bold block text-sm">Modul Mutasi Stok Multi-Cabang Aktif</span>
                             <span>Setiap pengiriman barang akan otomatis memotong stok di cabang asal dan menambahkan stok di cabang tujuan setelah dikonfirmasi diterima.</span>
                         </div>

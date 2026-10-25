@@ -1,13 +1,33 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import SubscriptionWarningBanner from '@/Components/SubscriptionWarningBanner';
 import MerchantNavbar from '@/Components/MerchantNavbar';
 import SubscriptionPaymentModal from '@/Components/SubscriptionPaymentModal';
+import {
+    ResponsiveContainer,
+    AreaChart,
+    Area,
+    BarChart,
+    Bar,
+    PieChart,
+    Pie,
+    Cell,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+} from 'recharts';
+
+const EXPENSE_PALETTE = ['#b45309', '#047857', '#0284c7', '#6d28d9', '#be123c', '#475569', '#ca8a04', '#0d9488'];
 
 export default function Dashboard({ 
     auth, 
     stats = {}, 
     paymentBreakdown = { cash: { total: 0, count: 0, percentage: 0 }, qris: { total: 0, count: 0, percentage: 0 } }, 
+    paymentChartData = [],
+    salesTrend = [],
+    topProductsChart = [],
+    expenseCategories = [],
     productProfitability = [], 
     expensesList = [], 
     bestSellers = [], 
@@ -20,17 +40,114 @@ export default function Dashboard({
     adminContact = {}
 }) {
     const { flash } = usePage().props;
+    const [trendMetric, setTrendMetric] = useState('revenue'); // 'revenue' | 'orders'
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(() => {
         return Boolean(flash?.show_qris_modal);
     });
     const [showExcelUpgradeModal, setShowExcelUpgradeModal] = useState(false);
-    const [isApprovedDismissed, setIsApprovedDismissed] = useState(false);
+    const [isApprovedDismissed, setIsApprovedDismissed] = useState(() => {
+        if (!recentlyApprovedSubscription?.id) return false;
+        try {
+            return localStorage.getItem(`dismissed_approved_sub_${recentlyApprovedSubscription.id}`) === 'true';
+        } catch (e) {
+            return false;
+        }
+    });
+
+    const handleDismissApprovedBanner = () => {
+        setIsApprovedDismissed(true);
+        if (recentlyApprovedSubscription?.id) {
+            try {
+                localStorage.setItem(`dismissed_approved_sub_${recentlyApprovedSubscription.id}`, 'true');
+            } catch (e) {}
+        }
+    };
+    const [showAllOrders, setShowAllOrders] = useState(false);
+    const [orderSearch, setOrderSearch] = useState('');
+
+    const filteredOrders = useMemo(() => {
+        if (!recentOrders) return [];
+        if (!orderSearch.trim()) return recentOrders;
+        const q = orderSearch.toLowerCase();
+        return recentOrders.filter(o => 
+            (o.invoice_number && o.invoice_number.toLowerCase().includes(q)) ||
+            (o.user?.name && o.user.name.toLowerCase().includes(q)) ||
+            (o.payment_method && o.payment_method.toLowerCase().includes(q))
+        );
+    }, [recentOrders, orderSearch]);
+
+    const displayedOrders = useMemo(() => {
+        if (showAllOrders || orderSearch.trim()) {
+            return filteredOrders;
+        }
+        return filteredOrders.slice(0, 10);
+    }, [filteredOrders, showAllOrders, orderSearch]);
+    
     const formatRupiah = (number) => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(number || 0);
     };
 
+    const formatShortRupiah = (num) => {
+        if (!num || num === 0) return '0';
+        if (num >= 1000000) return `${(num / 1000000).toFixed(1)} jt`;
+        if (num >= 1000) return `${Math.round(num / 1000)} rb`;
+        return num.toString();
+    };
+
     const handleFilterChange = (type, value) => {
         router.get(route('dashboard'), { filter_type: type, filter_value: value }, { preserveState: true });
+    };
+
+    const CustomTrendTooltip = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="bg-surface-container-lowest border border-outline-variant p-3 rounded-xl shadow-lg text-xs space-y-1.5 z-50">
+                    <p className="font-bold text-on-surface border-b border-outline-variant pb-1">
+                        {filters?.type === 'date' ? `Pukul ${label}` : label}
+                    </p>
+                    {payload.map((entry, index) => (
+                        <div key={`trend-tip-${index}`} className="flex items-center justify-between gap-4">
+                            <span className="flex items-center gap-1.5 text-on-surface-variant font-medium">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }}></span>
+                                <span>{entry.name}:</span>
+                            </span>
+                            <span className="font-bold text-on-surface font-mono">
+                                {entry.dataKey === 'orders_count' ? `${entry.value} order` : formatRupiah(entry.value)}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+        return null;
+    };
+
+    const CustomBarTooltip = ({ active, payload }) => {
+        if (active && payload && payload.length) {
+            const data = payload[0].payload;
+            return (
+                <div className="bg-surface-container-lowest border border-outline-variant p-3 rounded-xl shadow-lg text-xs space-y-1 z-50">
+                    <p className="font-bold text-primary border-b border-outline-variant pb-1">{data.full_name || data.name}</p>
+                    <div className="flex justify-between gap-4 text-on-surface-variant">
+                        <span>Kategori:</span>
+                        <span className="font-semibold text-on-surface">{data.category || '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4 text-on-surface-variant">
+                        <span>Unit Terjual:</span>
+                        <span className="font-bold text-primary font-mono">{data.sold} unit</span>
+                    </div>
+                    <div className="flex justify-between gap-4 text-on-surface-variant">
+                        <span>Total Omzet:</span>
+                        <span className="font-bold text-on-surface font-mono">{formatRupiah(data.revenue)}</span>
+                    </div>
+                    <div className="flex justify-between gap-4 text-on-surface-variant">
+                        <span>Estimasi Laba:</span>
+                        <span className="font-bold text-emerald-700 font-mono">{formatRupiah(data.profit)}</span>
+                    </div>
+                </div>
+            );
+        }
+        return null;
     };
 
     const activeTenant = tenant || auth.user?.tenant;
@@ -71,7 +188,7 @@ export default function Dashboard({
 
                         <button
                             type="button"
-                            onClick={() => setIsApprovedDismissed(true)}
+                            onClick={handleDismissApprovedBanner}
                             className="p-1.5 text-emerald-800 hover:bg-emerald-200 rounded-lg transition cursor-pointer"
                             title="Tutup pemberitahuan"
                         >
@@ -347,57 +464,381 @@ export default function Dashboard({
 
                 </div>
 
-                {/* Section: Rekapitulasi Arus Kas Kasir (Clean Unified Cards) */}
-                <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-sm space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-outline-variant pb-3">
-                        <div className="flex items-center space-x-2">
-                            <span className="material-symbols-outlined text-primary text-lg">account_balance</span>
-                            <h3 className="font-headline-sm font-bold text-on-surface">
-                                Rekapitulasi Arus Kas (Cash Flow)
-                            </h3>
+                {/* Section: Visual Analytics Suite (Tersedia untuk Semua Paket) */}
+                <div className="space-y-6">
+                        {/* Row 1: Sales & Profit Trend (2/3) + Cash Flow Donut (1/3) */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        {/* Chart 1: Tren Penjualan & Laba Bersih */}
+                        <div className="lg:col-span-2 bg-surface-container-lowest p-5 sm:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col justify-between">
+                            <div>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-outline-variant pb-3 mb-4">
+                                    <div className="flex items-center space-x-2.5">
+                                        <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                            <span className="material-symbols-outlined text-lg">trending_up</span>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-headline-sm font-bold text-on-surface">
+                                                Grafik Tren Penjualan & Laba
+                                            </h3>
+                                            <p className="text-xs text-on-surface-variant">
+                                                {filters?.type === 'date' 
+                                                    ? 'Fluktuasi omzet dan estimasi laba per jam operasional' 
+                                                    : 'Pergerakan omzet dan estimasi laba bersih harian'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Metric Switcher Tab */}
+                                    <div className="inline-flex p-1 bg-surface-container-low rounded-xl border border-outline-variant text-xs">
+                                        <button
+                                            type="button"
+                                            onClick={() => setTrendMetric('revenue')}
+                                            className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                                                trendMetric === 'revenue'
+                                                    ? 'bg-primary text-on-primary shadow-xs'
+                                                    : 'text-on-surface-variant hover:text-on-surface'
+                                            }`}
+                                        >
+                                            Omzet & Laba
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setTrendMetric('orders')}
+                                            className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                                                trendMetric === 'orders'
+                                                    ? 'bg-primary text-on-primary shadow-xs'
+                                                    : 'text-on-surface-variant hover:text-on-surface'
+                                            }`}
+                                        >
+                                            Jumlah Order
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Chart Render */}
+                                <div className="h-64 sm:h-72 w-full pt-2">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        {trendMetric === 'revenue' ? (
+                                            <AreaChart data={salesTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                                <defs>
+                                                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#8d4f03" stopOpacity={0.4} />
+                                                        <stop offset="95%" stopColor="#8d4f03" stopOpacity={0.0} />
+                                                    </linearGradient>
+                                                    <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#059669" stopOpacity={0.35} />
+                                                        <stop offset="95%" stopColor="#059669" stopOpacity={0.0} />
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.6} />
+                                                <XAxis 
+                                                    dataKey="short_label" 
+                                                    stroke="#8d4f03" 
+                                                    fontSize={11} 
+                                                    tickLine={false} 
+                                                    axisLine={{ stroke: '#e5e7eb' }} 
+                                                />
+                                                <YAxis 
+                                                    stroke="#8d4f03" 
+                                                    fontSize={11} 
+                                                    tickFormatter={formatShortRupiah} 
+                                                    tickLine={false} 
+                                                    axisLine={false}
+                                                    width={45} 
+                                                />
+                                                <Tooltip content={<CustomTrendTooltip />} />
+                                                <Area 
+                                                    type="monotone" 
+                                                    dataKey="revenue" 
+                                                    name="Omzet" 
+                                                    stroke="#8d4f03" 
+                                                    strokeWidth={2.5} 
+                                                    fillOpacity={1} 
+                                                    fill="url(#colorRevenue)" 
+                                                />
+                                                <Area 
+                                                    type="monotone" 
+                                                    dataKey="profit" 
+                                                    name="Laba Bersih" 
+                                                    stroke="#059669" 
+                                                    strokeWidth={2} 
+                                                    fillOpacity={1} 
+                                                    fill="url(#colorProfit)" 
+                                                />
+                                            </AreaChart>
+                                        ) : (
+                                            <BarChart data={salesTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.6} />
+                                                <XAxis 
+                                                    dataKey="short_label" 
+                                                    stroke="#8d4f03" 
+                                                    fontSize={11} 
+                                                    tickLine={false} 
+                                                    axisLine={{ stroke: '#e5e7eb' }} 
+                                                />
+                                                <YAxis 
+                                                    stroke="#8d4f03" 
+                                                    fontSize={11} 
+                                                    tickLine={false} 
+                                                    axisLine={false}
+                                                    width={35} 
+                                                />
+                                                <Tooltip content={<CustomTrendTooltip />} />
+                                                <Bar 
+                                                    dataKey="orders_count" 
+                                                    name="Transaksi" 
+                                                    fill="#271310" 
+                                                    radius={[6, 6, 0, 0]} 
+                                                />
+                                            </BarChart>
+                                        )}
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Chart Mini Footer Legend & Quick Stats */}
+                            <div className="pt-3 border-t border-outline-variant/60 flex flex-wrap items-center justify-between gap-3 text-xs text-on-surface-variant">
+                                <div className="flex items-center space-x-4">
+                                    <div className="flex items-center space-x-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-[#8d4f03]"></span>
+                                        <span>Omzet Penjualan</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-[#059669]"></span>
+                                        <span>Laba Bersih</span>
+                                    </div>
+                                </div>
+                                <div className="text-[11px] text-on-surface-variant font-medium">
+                                    Rata-rata Penjualan/Transaksi: <strong className="text-on-surface font-semibold">{formatRupiah(stats.avgOrderValue)}</strong>
+                                </div>
+                            </div>
                         </div>
-                        <span className="text-xs text-on-surface-variant">
-                            Total Penerimaan: <strong className="text-on-surface font-semibold">{formatRupiah(stats.grandTotal)}</strong> (termasuk PPN {formatRupiah(stats.tax)})
-                        </span>
+
+                        {/* Chart 2: Komposisi Arus Kas Kasir (Donut Chart) */}
+                        <div className="bg-surface-container-lowest p-5 sm:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center justify-between border-b border-outline-variant pb-3 mb-2">
+                                    <div className="flex items-center space-x-2">
+                                        <div className="w-8 h-8 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
+                                            <span className="material-symbols-outlined text-base">pie_chart</span>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-headline-sm font-bold text-on-surface">Arus Kas (Cash Flow)</h3>
+                                            <p className="text-[11px] text-on-surface-variant">Tunai vs Digital QRIS</p>
+                                        </div>
+                                    </div>
+                                    <span className="text-[11px] font-semibold bg-surface-container-highest px-2 py-0.5 rounded-md text-on-surface-variant">
+                                        PPN {formatRupiah(stats.tax)}
+                                    </span>
+                                </div>
+
+                                {/* Donut Chart */}
+                                <div className="h-44 w-full relative flex items-center justify-center">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={paymentChartData.length > 0 && (paymentBreakdown.cash?.total > 0 || paymentBreakdown.qris?.total > 0) ? paymentChartData : [
+                                                    { name: 'Belum Ada Transaksi', value: 1, color: '#e5e7eb' }
+                                                ]}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={50}
+                                                outerRadius={70}
+                                                paddingAngle={4}
+                                                dataKey="value"
+                                            >
+                                                {paymentChartData.map((entry, index) => (
+                                                    <Cell key={`pay-cell-${index}`} fill={entry.color} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(value) => formatRupiah(value)} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    
+                                    {/* Centered Donut Label */}
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                                        <span className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider">Total Masuk</span>
+                                        <span className="text-sm font-bold text-on-surface leading-tight font-mono">
+                                            {formatShortRupiah(stats.grandTotal)}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* 2 Compact Cash Flow Details */}
+                                <div className="space-y-2.5 pt-1">
+                                    {/* Uang Tunai di Laci Kasir */}
+                                    <div className="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant flex items-center justify-between">
+                                        <div className="flex items-center space-x-2">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-[#8d4f03] shrink-0"></span>
+                                            <div>
+                                                <div className="font-bold text-xs text-on-surface">Uang Kas Fisik di Laci</div>
+                                                <div className="text-[11px] text-on-surface-variant">
+                                                    {paymentBreakdown.cash?.count || 0} Trx ({paymentBreakdown.cash?.percentage || 0}%)
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right font-bold text-xs text-on-surface font-mono">
+                                            {formatRupiah(paymentBreakdown.cash?.total)}
+                                        </div>
+                                    </div>
+
+                                    {/* Pembayaran Digital QRIS */}
+                                    <div className="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant flex items-center justify-between">
+                                        <div className="flex items-center space-x-2">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-[#271310] shrink-0"></span>
+                                            <div>
+                                                <div className="font-bold text-xs text-on-surface">Digital QRIS (Bank)</div>
+                                                <div className="text-[11px] text-on-surface-variant">
+                                                    {paymentBreakdown.qris?.count || 0} Trx ({paymentBreakdown.qris?.percentage || 0}%)
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right font-bold text-xs text-on-surface font-mono">
+                                            {formatRupiah(paymentBreakdown.qris?.total)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-                        {/* Uang Tunai di Laci Kasir */}
-                        <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant flex items-start justify-between">
-                            <div className="space-y-1">
-                                <div className="flex items-center space-x-2">
-                                    <span className="material-symbols-outlined text-lg text-primary">point_of_sale</span>
-                                    <span className="font-label-md font-bold text-on-surface">Uang Kas Fisik di Laci</span>
+                    {/* Row 2: Top 5 Best Sellers (Horizontal Bar Chart) + Operational Expenses Breakdown */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        
+                        {/* Chart 3: Top 5 Menu Paling Laris */}
+                        <div className="bg-surface-container-lowest p-5 sm:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center justify-between border-b border-outline-variant pb-3 mb-4">
+                                    <div className="flex items-center space-x-2.5">
+                                        <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center shrink-0">
+                                            <span className="material-symbols-outlined text-base">bar_chart</span>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-headline-sm font-bold text-on-surface">Top 5 Menu Paling Laris</h3>
+                                            <p className="text-xs text-on-surface-variant">Unit terbanyak terjual pada periode ini</p>
+                                        </div>
+                                    </div>
+                                    <span className="text-xs bg-amber-100 text-amber-900 font-semibold px-2.5 py-0.5 rounded-md">
+                                        Best Sellers
+                                    </span>
                                 </div>
-                                <div className="text-2xl font-bold text-on-surface pt-1">
-                                    {formatRupiah(paymentBreakdown.cash?.total)}
-                                </div>
-                                <p className="text-xs text-on-surface-variant">
-                                    {paymentBreakdown.cash?.count || 0} Transaksi Tunai ({paymentBreakdown.cash?.percentage || 0}% porsi uang masuk)
-                                </p>
+
+                                {topProductsChart && topProductsChart.length > 0 ? (
+                                    <div className="h-60 w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart
+                                                data={topProductsChart}
+                                                layout="vertical"
+                                                margin={{ top: 5, right: 25, left: 10, bottom: 5 }}
+                                            >
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" opacity={0.6} />
+                                                <XAxis type="number" fontSize={11} stroke="#8d4f03" tickLine={false} />
+                                                <YAxis 
+                                                    dataKey="name" 
+                                                    type="category" 
+                                                    width={110} 
+                                                    fontSize={11} 
+                                                    stroke="#271310" 
+                                                    tickLine={false}
+                                                    axisLine={{ stroke: '#e5e7eb' }} 
+                                                />
+                                                <Tooltip content={<CustomBarTooltip />} />
+                                                <Bar dataKey="sold" name="Unit Terjual" fill="#8d4f03" radius={[0, 6, 6, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                ) : (
+                                    <div className="h-48 flex flex-col items-center justify-center text-on-surface-variant text-xs italic">
+                                        <span className="material-symbols-outlined text-3xl mb-1 opacity-40">inventory_2</span>
+                                        Belum ada data penjualan pada periode ini.
+                                    </div>
+                                )}
                             </div>
-                            <span className="text-[11px] font-medium bg-surface-container-highest text-on-surface-variant px-2.5 py-1 rounded-md">
-                                Kas Tunai
-                            </span>
+
+                            <div className="pt-3 border-t border-outline-variant/60 flex items-center justify-between text-xs text-on-surface-variant">
+                                <span>Diurutkan berdasarkan kuantitas transaksi</span>
+                                <span className="font-semibold text-primary">Unit Terjual</span>
+                            </div>
                         </div>
 
-                        {/* Pembayaran Digital QRIS */}
-                        <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant flex items-start justify-between">
-                            <div className="space-y-1">
-                                <div className="flex items-center space-x-2">
-                                    <span className="material-symbols-outlined text-lg text-primary">qr_code_scanner</span>
-                                    <span className="font-label-md font-bold text-on-surface">Pembayaran Digital QRIS</span>
+                        {/* Chart 4: Beban Pengeluaran */}
+                        <div className="bg-surface-container-lowest p-5 sm:p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center justify-between border-b border-outline-variant pb-3 mb-4">
+                                    <div className="flex items-center space-x-2.5">
+                                        <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-700 flex items-center justify-center shrink-0">
+                                            <span className="material-symbols-outlined text-base">donut_large</span>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-headline-sm font-bold text-on-surface">Beban Pengeluaran</h3>
+                                            <p className="text-xs text-on-surface-variant">Alokasi beban pengeluaran berdasarkan kategori</p>
+                                        </div>
+                                    </div>
+                                    <Link href={route('expenses.index')} className="text-xs text-primary font-bold hover:underline">
+                                        + Catat Pengeluaran
+                                    </Link>
                                 </div>
-                                <div className="text-2xl font-bold text-on-surface pt-1">
-                                    {formatRupiah(paymentBreakdown.qris?.total)}
-                                </div>
-                                <p className="text-xs text-on-surface-variant">
-                                    {paymentBreakdown.qris?.count || 0} Transaksi Digital ({paymentBreakdown.qris?.percentage || 0}% porsi uang masuk)
-                                </p>
+
+                                {expenseCategories && expenseCategories.length > 0 ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                                        <div className="h-48 w-full relative flex items-center justify-center">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={expenseCategories}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={45}
+                                                        outerRadius={65}
+                                                        paddingAngle={3}
+                                                        dataKey="amount"
+                                                    >
+                                                        {expenseCategories.map((entry, index) => (
+                                                            <Cell key={`exp-cell-${index}`} fill={EXPENSE_PALETTE[index % EXPENSE_PALETTE.length]} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip formatter={(value) => formatRupiah(value)} />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                                                <span className="text-[10px] text-on-surface-variant uppercase font-bold">Total Beban</span>
+                                                <span className="text-xs font-bold text-red-600 font-mono">
+                                                    {formatShortRupiah(stats.expenses)}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                            {expenseCategories.map((item, idx) => (
+                                                <div key={idx} className="flex items-center justify-between text-xs p-1.5 rounded-lg bg-surface-container-low border border-outline-variant/60">
+                                                    <div className="flex items-center space-x-2 truncate">
+                                                        <span 
+                                                            className="w-2.5 h-2.5 rounded-full shrink-0" 
+                                                            style={{ backgroundColor: EXPENSE_PALETTE[idx % EXPENSE_PALETTE.length] }}
+                                                        ></span>
+                                                        <span className="font-semibold text-on-surface truncate">{item.name}</span>
+                                                    </div>
+                                                    <div className="text-right shrink-0 font-mono font-bold text-on-surface">
+                                                        {formatRupiah(item.amount)} <span className="text-[10px] text-on-surface-variant font-normal">({item.percentage}%)</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="h-48 flex flex-col items-center justify-center text-on-surface-variant text-xs italic">
+                                        <span className="material-symbols-outlined text-3xl mb-1 opacity-40">receipt_long</span>
+                                        Belum ada catatan pengeluaran pada periode ini.
+                                    </div>
+                                )}
                             </div>
-                            <span className="text-[11px] font-medium bg-surface-container-highest text-on-surface-variant px-2.5 py-1 rounded-md">
-                                Saldo Bank
-                            </span>
+
+                            <div className="pt-3 border-t border-outline-variant/60 flex items-center justify-between text-xs text-on-surface-variant">
+                                <span>Total Beban Pengeluaran:</span>
+                                <strong className="font-mono text-red-600 font-bold">{formatRupiah(stats.expenses)}</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -478,116 +919,156 @@ export default function Dashboard({
                     </div>
                 </div>
 
-                {/* Section: Pengeluaran Toko & 10 Transaksi Terakhir (2 Kolom) */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
-                    {/* Kolom Kiri: Rincian Pengeluaran Toko (OPEX) */}
-                    <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-outline-variant space-y-4">
-                        <div className="flex items-center justify-between border-b border-outline-variant pb-3">
-                            <div className="flex items-center space-x-2">
-                                <span className="material-symbols-outlined text-error">receipt</span>
-                                <h3 className="font-headline-sm font-bold text-on-surface">Beban Pengeluaran</h3>
+                {/* Section: Transaksi Kasir (Default 10 Terakhir / Semua Transaksi) */}
+                <div className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant overflow-hidden flex flex-col justify-between">
+                    <div>
+                        <div className="p-4 sm:p-5 border-b border-outline-variant bg-surface-container-low flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center space-x-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                    <span className="material-symbols-outlined text-base">history</span>
+                                </div>
+                                <div>
+                                    <h3 className="font-headline-sm font-bold text-on-surface">
+                                        {showAllOrders || orderSearch ? 'Semua Transaksi Periode Ini' : '10 Transaksi Kasir Terakhir'}
+                                    </h3>
+                                    <p className="text-[11px] text-on-surface-variant">
+                                        {recentOrders?.length || 0} total transaksi pada periode {stats.periodLabel}
+                                    </p>
+                                </div>
                             </div>
-                            <Link href={route('expenses.index')} className="text-xs text-primary font-bold hover:underline">
-                                + Kelola
-                            </Link>
+
+                            {/* Controls: Live Search + Switcher 10 Terakhir vs Semua */}
+                            <div className="flex flex-wrap items-center gap-2.5">
+                                {recentOrders && recentOrders.length > 5 && (
+                                    <div className="relative">
+                                        <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+                                        <input
+                                            type="text"
+                                            value={orderSearch}
+                                            onChange={(e) => setOrderSearch(e.target.value)}
+                                            placeholder="Cari invoice / kasir..."
+                                            className="pl-8 pr-7 py-1 text-xs rounded-xl border border-outline-variant bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary outline-none w-44 sm:w-52"
+                                        />
+                                        {orderSearch && (
+                                            <button 
+                                                onClick={() => setOrderSearch('')} 
+                                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface text-xs font-bold"
+                                                title="Reset pencarian"
+                                            >
+                                                ✕
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="inline-flex items-center bg-surface-container-highest p-1 rounded-xl text-xs font-semibold">
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowAllOrders(false); setOrderSearch(''); }}
+                                        className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                                            !showAllOrders && !orderSearch 
+                                                ? 'bg-surface-container-lowest text-primary shadow-xs font-bold' 
+                                                : 'text-on-surface-variant hover:text-on-surface'
+                                        }`}
+                                    >
+                                        10 Terakhir
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllOrders(true)}
+                                        className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                                            showAllOrders || orderSearch 
+                                                ? 'bg-surface-container-lowest text-primary shadow-xs font-bold' 
+                                                : 'text-on-surface-variant hover:text-on-surface'
+                                        }`}
+                                    >
+                                        Semua ({recentOrders?.length || 0})
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-                            {expensesList?.map((exp) => (
-                                <div key={exp.id} className="p-3 bg-surface-container-low rounded-xl border border-outline-variant flex justify-between items-center">
-                                    <div>
-                                        <div className="font-bold text-sm text-on-surface">{exp.category}</div>
-                                        <div className="text-xs text-on-surface-variant">{exp.description || 'Tanpa catatan'} &bull; {exp.expense_date}</div>
-                                    </div>
-                                    <div className="font-bold text-sm text-error">
-                                        -{formatRupiah(exp.amount)}
-                                    </div>
-                                </div>
-                            ))}
-                            {(!expensesList || expensesList.length === 0) && (
-                                <div className="text-center py-6 text-on-surface-variant text-xs italic">
-                                    Tidak ada pengeluaran di periode ini.
-                                </div>
+                        <div className={`overflow-x-auto ${showAllOrders || orderSearch ? 'max-h-[520px]' : 'max-h-80'} overflow-y-auto`}>
+                            <table className="w-full text-left font-body-sm text-on-surface">
+                                <thead className="bg-surface-container-highest font-label-sm text-on-surface-variant sticky top-0 z-10 shadow-xs">
+                                    <tr>
+                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Invoice</th>
+                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Waktu</th>
+                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Kasir</th>
+                                        <th className="px-4 py-3 font-semibold whitespace-nowrap">Metode</th>
+                                        <th className="px-4 py-3 font-semibold text-right whitespace-nowrap">Total</th>
+                                        <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Struk</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-outline-variant">
+                                    {displayedOrders?.map(order => (
+                                        <tr key={order.id} className="hover:bg-surface-container-low transition-colors">
+                                            <td className="px-4 py-3 font-bold text-primary whitespace-nowrap">{order.invoice_number}</td>
+                                            <td className="px-4 py-3 text-on-surface-variant text-xs whitespace-nowrap">
+                                                {new Date(order.created_at).toLocaleString('id-ID')}
+                                            </td>
+                                            <td className="px-4 py-3 text-xs whitespace-nowrap">{order.user?.name || '-'}</td>
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded font-bold text-[10px] uppercase whitespace-nowrap ${
+                                                    order.payment_method === 'qris' 
+                                                        ? 'bg-blue-100 text-blue-800' 
+                                                        : 'bg-green-100 text-green-800'
+                                                }`}>
+                                                    {order.payment_method}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-bold whitespace-nowrap">{formatRupiah(order.total_amount)}</td>
+                                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                                                <button
+                                                    onClick={() => window.open(route('orders.receipt', order.id), '_blank', 'width=420,height=650,menubar=no,toolbar=no,location=no,status=no')}
+                                                    className="px-2.5 py-1 bg-surface-container-high hover:bg-primary hover:text-white rounded-lg text-xs font-semibold transition active:scale-95 cursor-pointer"
+                                                    title="Cetak Ulang Struk"
+                                                >
+                                                    Struk
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {(!displayedOrders || displayedOrders.length === 0) && (
+                                        <tr>
+                                            <td colSpan="6" className="px-4 py-8 text-center text-on-surface-variant italic text-xs">
+                                                {orderSearch ? 'Tidak ada transaksi yang cocok dengan pencarian.' : 'Belum ada transaksi.'}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="p-3 bg-surface-container-low border-t border-outline-variant flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+                        <div>
+                            {(recentOrders?.length || 0) > 10 && !orderSearch && (
+                                !showAllOrders ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllOrders(true)}
+                                        className="text-primary font-bold hover:underline flex items-center space-x-1 cursor-pointer"
+                                    >
+                                        <span>Lihat semua {recentOrders.length} transaksi periode ini</span>
+                                        <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllOrders(false)}
+                                        className="text-on-surface-variant hover:text-on-surface font-semibold flex items-center space-x-1 cursor-pointer"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">arrow_back</span>
+                                        <span>Ciutkan ke 10 transaksi terakhir</span>
+                                    </button>
+                                )
                             )}
                         </div>
-
-                        <div className="pt-3 border-t border-outline-variant flex justify-between items-center font-bold text-sm">
-                            <span>Total Pengeluaran:</span>
-                            <span className="text-error">{formatRupiah(stats.expenses)}</span>
-                        </div>
+                        <span className="text-on-surface-variant">
+                            Menampilkan {displayedOrders.length} dari {recentOrders?.length || 0} transaksi pada periode <strong>{stats.periodLabel}</strong>
+                        </span>
                     </div>
-
-                    {/* Kolom Kanan: 10 Transaksi Terakhir (2 Kolom Lebar) */}
-                    <div className="lg:col-span-2 bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant overflow-hidden flex flex-col justify-between">
-                        <div>
-                            <div className="p-5 border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
-                                <div className="flex items-center space-x-2">
-                                    <span className="material-symbols-outlined text-primary">history</span>
-                                    <h3 className="font-headline-sm font-bold text-on-surface">10 Transaksi Kasir Terakhir</h3>
-                                </div>
-                            </div>
-
-                            <div className="overflow-x-auto max-h-80 overflow-y-auto">
-                                <table className="w-full text-left font-body-sm text-on-surface">
-                                    <thead className="bg-surface-container-highest font-label-sm text-on-surface-variant sticky top-0">
-                                        <tr>
-                                            <th className="px-4 py-3 font-semibold whitespace-nowrap">Invoice</th>
-                                            <th className="px-4 py-3 font-semibold whitespace-nowrap">Waktu</th>
-                                            <th className="px-4 py-3 font-semibold whitespace-nowrap">Kasir</th>
-                                            <th className="px-4 py-3 font-semibold whitespace-nowrap">Metode</th>
-                                            <th className="px-4 py-3 font-semibold text-right whitespace-nowrap">Total</th>
-                                            <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Struk</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-outline-variant">
-                                        {recentOrders?.map(order => (
-                                            <tr key={order.id} className="hover:bg-surface-container-low transition-colors">
-                                                <td className="px-4 py-3 font-bold text-primary whitespace-nowrap">{order.invoice_number}</td>
-                                                <td className="px-4 py-3 text-on-surface-variant text-xs whitespace-nowrap">
-                                                    {new Date(order.created_at).toLocaleString('id-ID')}
-                                                </td>
-                                                <td className="px-4 py-3 text-xs whitespace-nowrap">{order.user?.name || '-'}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap">
-                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded font-bold text-[10px] uppercase whitespace-nowrap ${
-                                                        order.payment_method === 'qris' 
-                                                            ? 'bg-blue-100 text-blue-800' 
-                                                            : 'bg-green-100 text-green-800'
-                                                    }`}>
-                                                        {order.payment_method}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-bold whitespace-nowrap">{formatRupiah(order.total_amount)}</td>
-                                                <td className="px-4 py-3 text-center whitespace-nowrap">
-                                                    <button
-                                                        onClick={() => window.open(route('orders.receipt', order.id), '_blank', 'width=420,height=650,menubar=no,toolbar=no,location=no,status=no')}
-                                                        className="px-2.5 py-1 bg-surface-container-high hover:bg-primary hover:text-white rounded-lg text-xs font-semibold transition active:scale-95"
-                                                        title="Cetak Ulang Struk"
-                                                    >
-                                                        Struk
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {(!recentOrders || recentOrders.length === 0) && (
-                                            <tr>
-                                                <td colSpan="6" className="px-4 py-8 text-center text-on-surface-variant italic text-xs">
-                                                    Belum ada transaksi.
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div className="p-3 bg-surface-container-low border-t border-outline-variant text-right">
-                            <span className="text-xs text-on-surface-variant">
-                                Menampilkan transaksi pada periode <strong>{stats.periodLabel}</strong>
-                            </span>
-                        </div>
-                    </div>
-
                 </div>
 
             </div>

@@ -33,12 +33,11 @@ class DashboardController extends Controller
             $periodLabel = "Bulan " . $startDate->translatedFormat('F Y');
         }
 
-        $financialData = $this->getFinancialData($startDate, $endDate, $periodLabel);
+        $financialData = $this->getFinancialData($startDate, $endDate, $periodLabel, $filterType);
 
         $recentOrders = Order::with('user', 'items.product')
             ->whereBetween('created_at', [$startDate, $endDate])
             ->latest()
-            ->take(10)
             ->get();
 
         $tenant = $request->user()->tenant?->load('plan');
@@ -75,6 +74,10 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'stats' => $financialData['stats'],
             'paymentBreakdown' => $financialData['paymentBreakdown'],
+            'paymentChartData' => $financialData['paymentChartData'] ?? [],
+            'salesTrend' => $financialData['salesTrend'] ?? [],
+            'topProductsChart' => $financialData['topProductsChart'] ?? [],
+            'expenseCategories' => $financialData['expenseCategories'] ?? [],
             'productProfitability' => $financialData['productProfitability'],
             'expensesList' => $financialData['expensesList'],
             'bestSellers' => $financialData['bestSellers'],
@@ -720,7 +723,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    private function getFinancialData($startDate, $endDate, $periodLabel): array
+    private function getFinancialData($startDate, $endDate, $periodLabel, $filterType = 'month'): array
     {
         $orders = Order::whereBetween('created_at', [$startDate, $endDate])->get();
         $ordersCount = $orders->count();
@@ -760,6 +763,23 @@ class DashboardController extends Controller
                 'total' => $qrisTotal,
                 'count' => $qrisOrders->count(),
                 'percentage' => $totalSettled > 0 ? round(($qrisTotal / $totalSettled) * 100, 1) : 0,
+            ],
+        ];
+
+        $paymentChartData = [
+            [
+                'name' => 'Tunai (Cash)',
+                'value' => $cashTotal,
+                'count' => $cashOrders->count(),
+                'percentage' => $paymentBreakdown['cash']['percentage'],
+                'color' => '#8d4f03',
+            ],
+            [
+                'name' => 'Digital (QRIS)',
+                'value' => $qrisTotal,
+                'count' => $qrisOrders->count(),
+                'percentage' => $paymentBreakdown['qris']['percentage'],
+                'color' => '#271310',
             ],
         ];
 
@@ -812,6 +832,100 @@ class DashboardController extends Controller
             $endDate->format('Y-m-d')
         ])->latest('expense_date')->get();
 
+        // 1. Data Tren Penjualan & Laba (salesTrend)
+        $salesTrend = [];
+        if ($filterType === 'date') {
+            // Pengelompokan per jam operasional (07:00 s/d 23:00)
+            $ordersByHour = $orders->groupBy(function ($o) {
+                return $o->created_at->format('H:00');
+            });
+
+            $itemsWithHour = OrderItem::whereHas('order', function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('created_at', [$startDate, $endDate]);
+            })->with('order')->get()->groupBy(function ($it) {
+                return $it->order->created_at->format('H:00');
+            });
+
+            for ($h = 7; $h <= 23; $h++) {
+                $hourKey = sprintf('%02d:00', $h);
+                $hourOrders = $ordersByHour->get($hourKey, collect());
+                $hourItems = $itemsWithHour->get($hourKey, collect());
+
+                $hourRevenue = (float) $hourOrders->sum('subtotal');
+                $hourCogs = (float) $hourItems->sum(fn($it) => (float) ($it->cost_price_at_purchase * $it->quantity));
+                $hourProfit = max(0, $hourRevenue - $hourCogs);
+
+                $salesTrend[] = [
+                    'label' => $hourKey,
+                    'short_label' => sprintf('%02d:00', $h),
+                    'revenue' => $hourRevenue,
+                    'profit' => $hourProfit,
+                    'orders_count' => $hourOrders->count(),
+                ];
+            }
+        } else {
+            // Pengelompokan harian dalam bulan berjalan
+            $ordersByDay = $orders->groupBy(function ($o) {
+                return $o->created_at->format('Y-m-d');
+            });
+
+            $itemsWithDay = OrderItem::whereHas('order', function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('created_at', [$startDate, $endDate]);
+            })->with('order')->get()->groupBy(function ($it) {
+                return $it->order->created_at->format('Y-m-d');
+            });
+
+            $currentLoopDate = $startDate->copy();
+            while ($currentLoopDate->lte($endDate)) {
+                $dayKey = $currentLoopDate->format('Y-m-d');
+                $dayLabel = $currentLoopDate->translatedFormat('d M');
+                $shortLabel = (string) $currentLoopDate->day;
+
+                $dayOrders = $ordersByDay->get($dayKey, collect());
+                $dayItems = $itemsWithDay->get($dayKey, collect());
+
+                $dayRevenue = (float) $dayOrders->sum('subtotal');
+                $dayCogs = (float) $dayItems->sum(fn($it) => (float) ($it->cost_price_at_purchase * $it->quantity));
+                $dayProfit = max(0, $dayRevenue - $dayCogs);
+
+                $salesTrend[] = [
+                    'label' => $dayLabel,
+                    'short_label' => $shortLabel,
+                    'date' => $dayKey,
+                    'revenue' => $dayRevenue,
+                    'profit' => $dayProfit,
+                    'orders_count' => $dayOrders->count(),
+                ];
+
+                $currentLoopDate->addDay();
+            }
+        }
+
+        // 2. Data Top 5 Menu Terlaris untuk Bar Chart
+        $topProductsChart = $productProfitability->take(5)->map(function ($item) {
+            return [
+                'name' => \Illuminate\Support\Str::limit($item['product_name'], 16),
+                'full_name' => $item['product_name'],
+                'category' => $item['category_name'],
+                'sold' => (int) $item['total_sold'],
+                'revenue' => (float) $item['total_revenue'],
+                'profit' => (float) $item['total_profit'],
+                'badge' => $item['badge'],
+            ];
+        })->values()->all();
+
+        // 3. Data Beban Pengeluaran untuk Donut Chart
+        $totalExpAmount = $expensesList->sum('amount') ?: 1;
+        $expenseCategories = $expensesList->groupBy('category')->map(function ($group, $cat) use ($totalExpAmount) {
+            $amount = (float) $group->sum('amount');
+            return [
+                'name' => $cat,
+                'amount' => $amount,
+                'percentage' => round(($amount / $totalExpAmount) * 100, 1),
+                'count' => $group->count(),
+            ];
+        })->sortByDesc('amount')->values()->all();
+
         return [
             'stats' => [
                 'revenue' => $revenue,
@@ -828,6 +942,10 @@ class DashboardController extends Controller
                 'periodLabel' => $periodLabel,
             ],
             'paymentBreakdown' => $paymentBreakdown,
+            'paymentChartData' => $paymentChartData,
+            'salesTrend' => $salesTrend,
+            'topProductsChart' => $topProductsChart,
+            'expenseCategories' => $expenseCategories,
             'productProfitability' => $productProfitability,
             'expensesList' => $expensesList,
             'bestSellers' => $productProfitability->take(5),

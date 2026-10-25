@@ -48,11 +48,13 @@ export default function MerchantNavbar({ tenant, auth, activePage = 'dashboard' 
         ? 'text-blue-600'
         : 'text-on-surface-variant';
 
+    const isEnterprise = planSlug === 'enterprise';
+
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', route: 'dashboard' },
         { id: 'products', label: 'Manajemen Produk', icon: 'inventory_2', route: 'products.index' },
         { id: 'admins', label: 'Manajemen Kasir', icon: 'badge', route: 'admins.index' },
-        { id: 'outlets', label: 'Cabang Toko', icon: 'storefront', route: 'outlets.index' },
+        { id: 'outlets', label: 'Cabang Toko', icon: 'storefront', route: 'outlets.index', isLocked: !isEnterprise },
         { id: 'expenses', label: 'Pengeluaran', icon: 'receipt_long', route: 'expenses.index' },
         { id: 'settings', label: 'Pengaturan Toko', icon: 'settings', route: 'tenant.settings' },
     ];
@@ -116,6 +118,9 @@ export default function MerchantNavbar({ tenant, auth, activePage = 'dashboard' 
                             >
                                 <span className="material-symbols-outlined text-base">{item.icon}</span>
                                 <span>{item.label}</span>
+                                {item.isLocked && (
+                                    <span className="material-symbols-outlined text-[13px] text-amber-600 font-bold" title="Fitur Eksklusif Paket Enterprise">lock</span>
+                                )}
                             </Link>
                         );
                     })}
@@ -258,6 +263,9 @@ export default function MerchantNavbar({ tenant, auth, activePage = 'dashboard' 
                         >
                             <span className="material-symbols-outlined text-sm">{item.icon}</span>
                             <span>{item.label}</span>
+                            {item.isLocked && (
+                                <span className="material-symbols-outlined text-[11px] text-amber-600 font-bold">lock</span>
+                            )}
                         </Link>
                     );
                 })}
@@ -315,7 +323,10 @@ export default function MerchantNavbar({ tenant, auth, activePage = 'dashboard' 
                                     }`}
                                 >
                                     <span className="material-symbols-outlined text-lg">{item.icon}</span>
-                                    <span>{item.label}</span>
+                                    <span className="flex-1">{item.label}</span>
+                                    {item.isLocked && (
+                                        <span className="material-symbols-outlined text-sm text-amber-600 font-bold">lock</span>
+                                    )}
                                 </Link>
                             );
                         })}

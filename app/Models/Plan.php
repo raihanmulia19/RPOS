@@ -40,7 +40,10 @@ class Plan extends Model
 
     public function maxOutlets(): int
     {
-        return $this->max_outlets ?? 1;
+        if ($this->slug !== 'enterprise') {
+            return 0;
+        }
+        return $this->max_outlets ?? 5;
     }
 
     public function tenants(): HasMany
